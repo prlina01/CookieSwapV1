@@ -1,11 +1,25 @@
 import type { NextPage } from 'next'
 import {ethers} from "ethers";
-import { useEffect, useState} from "react";
-import {useForm} from "react-hook-form";
+import { useEffect, useState, useMemo, ChangeEvent} from "react";
+import {useForm, useWatch} from "react-hook-form";
 import Link from 'next/link'
 import Web3Modal from 'web3modal'
-import { Input, Container, Row, Col, Spacer, Card, Text, Button, Modal, useModal, Loading, Radio, Grid } from "@nextui-org/react";
-
+import {
+  Input,
+  Container,
+  Row,
+  Col,
+  Spacer,
+  Card,
+  Text,
+  Button,
+  Modal,
+  useModal,
+  Loading,
+  Radio,
+  Grid,
+  FormElement
+} from "@nextui-org/react";
 
 
 const Home: NextPage = () => {
@@ -18,27 +32,76 @@ const Home: NextPage = () => {
     const signer = provider.getSigner()
 
   }
-  const { setVisible, bindings } = useModal();
-  const [firstToken, setFirstToken] = useState<string>()
-  const [secondToken, setSecondToken] = useState<string>();
+  const {setVisible, bindings} = useModal();
+  const [firstToken, setFirstToken] = useState<string>("")
+  const [secondToken, setSecondToken] = useState<string>("");
+  const [lastBtnAccessedModal, setLastBtnAccessedModal] = useState<string>("")
 
-  const {reset, register, handleSubmit, formState} = useForm()
+  const {control, reset, register, handleSubmit, formState, setValue} = useForm()
+
+  const firstTokenAmount = useWatch({control, name: 'firstTokenAmount'})
+  const secondTokenAmount = useWatch({control, name: 'secondTokenAmount'})
 
 
   useEffect(() => {
     reset({
-      greetInputField: ''
+      firstTokenAmount: '',
+      secondTokenAmount: ''
     })
   }, [reset, formState.isSubmitSuccessful])
 
-  const showButton = () => {
-    if(!firstToken) {return (<Button auto shadow color="gradient" onClick={() => setVisible(true)} >ETH ∨</Button>)}
-    else if (firstToken === "ETH") {return (<Button size={'xs'}></Button>)}
+  const showTokenButton = (tokenButtonNumber: string) => {
+
+    if (tokenButtonNumber === 'first') {
+      if (!firstToken) {
+        return (_chooseButton('Select', tokenButtonNumber))
+      }
+      return _chooseButton(firstToken, tokenButtonNumber)
+    } else if (tokenButtonNumber === 'second') {
+      if (!secondToken) {
+        return (_chooseButton('Select', tokenButtonNumber))
+      }
+      return _chooseButton(secondToken, tokenButtonNumber)
+    }
+
   }
 
-  // @ts-ignore
-  // @ts-ignore
-  // @ts-ignore
+  const _chooseButton = (tokenName: string, tokenButtonNumber: string) => {
+    return (
+        <Button auto shadow color="gradient" onClick={() => {
+          setLastBtnAccessedModal(tokenButtonNumber)
+          setVisible(true)
+        }
+        }>{tokenName} ∨</Button>
+    )
+  }
+
+  const chooseToken = (tokenButtonNumber: string, tokenName: string) => {
+    if (tokenButtonNumber === 'first') {
+      setFirstToken(tokenName)
+    } else if (tokenButtonNumber === 'second') {
+      setSecondToken(tokenName)
+    }
+    setVisible(false)
+  }
+
+  const handleArrowClick = () => {
+    let temp = firstToken
+    setFirstToken(secondToken)
+    setSecondToken(temp)
+    temp = firstTokenAmount
+    setValue('firstTokenAmount', secondTokenAmount)
+    setValue('secondTokenAmount', temp)
+  }
+
+
+
+  const checkInputHandler = (e: ChangeEvent<FormElement>) => {
+    const value = e.target.value
+    const isValid = value.match(/^[+]?([0-9]+\.?[0-9]*|\.[0-9]+)$/)
+    if(!isValid || value.length > 15) setValue('firstTokenAmount', value.substring(0,value.length - 1))
+  }
+
   return (
       <div>
         <Spacer y={10} />
@@ -50,45 +113,56 @@ const Home: NextPage = () => {
             }}>
               Swap
             </Text>
-            <Grid.Container gap={2} justify="center">
-              <Grid  lg={9} xs={12}>
-                <Input
-                    fullWidth
-                    rounded
-                    bordered
-                    placeholder="0.00"
-                    color="primary"
-                    size="xl"
-                    aria-label="input1"
-                />
-              </Grid>
-              <Grid  lg={3} xs={12} justify='center'>
-                {showButton()}
-              </Grid>
-              <Grid lg={9} justify='center' xs={12}>
-                <button className="text-xs"><Text color='primary' size={50} >&#8623;</Text></button>
-              </Grid>
-              <Grid lg={3} xs={0}/>
-              <Grid lg={9} xs={12}>
-                <Input
-                    fullWidth
-                    rounded
-                    bordered
-                    placeholder="0.00"
-                    color="primary"
-                    size="xl"
-                    aria-label="input2"
-                />
-              </Grid>
-              <Grid lg={3} xs={12} justify='center'>
-                {showButton()}
-              </Grid>
-              <Spacer y={2} />
-              <Grid lg={12} xs={12} justify='center'>
-                <Button auto color='gradient'>Start</Button>
-              </Grid>
-              {/*<Grid lg={3} xs={0} />*/}
-            </Grid.Container>
+            <form onSubmit={handleSubmit(handleSwap)}>
+              <Grid.Container gap={2} justify="center">
+                <Grid  lg={9} xs={12}>
+                  <Input
+                      fullWidth
+                      rounded
+                      bordered
+                      placeholder="0.00"
+                      color="primary"
+                      size="xl"
+                      aria-label="input1"
+                      {...register('firstTokenAmount', {required: true, maxLength: 15} )}
+                      status="primary"
+                      onChange={(e) => checkInputHandler(e) }
+                  />
+                </Grid>
+                <Grid  lg={3} xs={12} justify='center'>
+                  {showTokenButton('first')}
+                </Grid>
+                <Grid lg={9} justify='center' xs={12}>
+                  <button className="text-xs" onClick={() => handleArrowClick()}>
+                    <Text className="hover:text-purple-700" color='primary' size={50} >&#8623;</Text>
+                  </button>
+                </Grid>
+                <Grid lg={3} xs={0}/>
+                <Grid lg={9} xs={12}>
+                  <Input
+                      fullWidth
+                      rounded
+                      bordered
+                      placeholder="0.00"
+                      color="primary"
+                      size="xl"
+                      aria-label="input2"
+                      disabled={true}
+                      {...register('secondTokenAmount', {required: true})}
+                      status="primary"
+                  />
+                </Grid>
+                <Grid lg={3} xs={12} justify='center'>
+                  {showTokenButton('second')}
+                </Grid>
+                <Spacer y={2} />
+                <Grid lg={12} xs={12} justify='center'>
+                  <Button auto color='gradient'>Start</Button>
+                </Grid>
+                {/*<Grid lg={3} xs={0} />*/}
+              </Grid.Container>
+
+            </form>
 
           </Card>
           <Modal
@@ -112,9 +186,9 @@ const Home: NextPage = () => {
               <Text id="modal-description">
               </Text>
                 <Button.Group size="xl" vertical color="gradient" flat>
-                  <Button onClick={() => setVisible(false)}>ETH</Button>
-                  <Button onClick={() => setVisible(false)}>Drugi</Button>
-                  <Button onClick={() => setVisible(false)}> Treci</Button>
+                  <Button onClick={() => chooseToken(lastBtnAccessedModal, 'ETH')}>ETH</Button>
+                  <Button onClick={() => chooseToken(lastBtnAccessedModal, 'secondT')}>SecondT</Button>
+                  <Button onClick={() => chooseToken(lastBtnAccessedModal, 'thirdT')}> ThirdT</Button>
                 </Button.Group>
 
             </Modal.Body>
