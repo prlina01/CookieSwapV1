@@ -2,35 +2,89 @@ import {NextPage} from "next";
 import {Button, Container, Spacer, Text, Card, Grid, Input, FormElement, Modal, useModal} from "@nextui-org/react";
 import Link from "next/link";
 import {ChangeEvent, useEffect, useState} from "react";
-import {useForm} from "react-hook-form";
+import {useForm, useWatch} from "react-hook-form";
+import Web3Modal from "web3modal";
+import {ethers} from "ethers";
+import Token from "../artifacts/contracts/Token.sol/Token.json";
+import * as deployedAddresses from '../.config'
+import {Factory as FactoryType, Factory__factory, Token__factory} from "../typechain";
+import Factory from '../artifacts/contracts/Factory.sol/Factory.json'
+import {Token as TokenType} from '../typechain'
+import Exchange from '../artifacts/contracts/Exchange.sol/Exchange.json'
 
 const Pool: NextPage = () => {
 
     const [addLiquidity, setAddLiquidity] = useState<boolean>(false);
     const {control, reset, register, handleSubmit, formState, setValue} = useForm()
     const {setVisible, bindings} = useModal();
-    const [token, setToken] = useState<string>("")
+    const [tokenName, setTokenName] = useState<string>("")
+    const ethAmount = useWatch({control, name: 'ethAmount'})
 
+    const [disableToken, setDisableToken] = useState<boolean>(true);
+
+
+
+    const [tokenSymbols, setTokenSymbols] = useState<string[]>([])
+    useEffect(() => {
+        const setSymbols = async () => {
+            const provider = new ethers.providers.AlchemyProvider('rinkeby')
+            let firstToken = new ethers.Contract(deployedAddresses.FIRST_TOKEN, Token.abi, provider)
+            let secondToken = new ethers.Contract(deployedAddresses.SECOND_TOKEN, Token.abi, provider)
+            // const signer = provider.getSigner()
+            // const tokenFactory = new Token__factory()
+            // const firstToken = tokenFactory.attach(deployedAddresses.FIRST_TOKEN)
+            // const secondToken = tokenFactory.attach(deployedAddresses.SECOND_TOKEN)
+            const firstTokenSymbol = await firstToken.symbol()
+            const secondTokenSymbol = await secondToken.symbol()
+            setTokenSymbols([firstTokenSymbol, secondTokenSymbol])
+        }
+        void setSymbols()
+    }, [])
 
     useEffect(() => {
         reset({
-            firstTokenAmount: '',
-            secondTokenAmount: ''
+            tokenAmount: '',
+            ethAmount: ''
         })
     }, [reset, formState.isSubmitSuccessful])
 
     const checkInputHandler = (e: ChangeEvent<FormElement>) => {
         const value = e.target.value
         const isValid = value.match(/^[+]?([0-9]+\.?[0-9]*|\.[0-9]+)$/)
-        if(!isValid || value.length > 15) setValue('firstTokenAmount', value.substring(0,value.length - 1))
+        if(!isValid || value.length > 15) setValue('ethAmount', value.substring(0,value.length - 1))
         else {
-            setValue('firstTokenAmount', value)
+            setValue('ethAmount', value)
         }
     }
     const chooseToken = async (tokenName: string) => {
-        console.log(tokenName)
-        setToken(tokenName)
+        setTokenName(tokenName)
         setVisible(false)
+
+        // input field has not been typed in
+        if(!ethAmount) return
+
+        // ubacen odredjen broj eth-a zelimo da vidimo koliko druge valute uzimamo
+
+        const provider = new ethers.providers.AlchemyProvider('rinkeby')
+
+        let tokenAddress
+        if(tokenName == tokenSymbols[0]) tokenAddress = deployedAddresses.FIRST_TOKEN
+        else tokenAddress = deployedAddresses.SECOND_TOKEN
+
+        let factory = new ethers.Contract(deployedAddresses.FACTORY, Factory.abi, provider)
+        let exchangeAddress = await factory.getExchange(tokenAddress)
+        let exchange = new ethers.Contract(exchangeAddress, Exchange.abi, provider)
+        // console.log(ethers.utils.parseEther(ethAmount))
+        let amountOfTokens
+        try {
+            amountOfTokens = await exchange.getTokenAmount(ethers.utils.parseEther(ethAmount))
+        } catch (e) {
+            setDisableToken(false)
+            return
+        }
+
+        setValue('tokenAmount', ethers.utils.parseEther(amountOfTokens))
+
     }
 
     const showTokenButton = (tokenName: string) => {
@@ -82,7 +136,7 @@ const Pool: NextPage = () => {
                                              color="primary"
                                              size="xl"
                                              aria-label="input1"
-                                             {...register('firstTokenAmount', {required: true, maxLength: 15} )}
+                                             {...register('ethAmount', {required: true, maxLength: 15} )}
                                              status="primary"
                                              onChange={(e) => checkInputHandler(e) }
                                          />
@@ -100,17 +154,17 @@ const Pool: NextPage = () => {
                                              fullWidth
                                              rounded
                                              bordered
-                                             placeholder={token ? token: 'Select a token'}
+                                             placeholder={tokenName ? "0.00": 'Select a token'}
                                              color="primary"
                                              size="xl"
                                              aria-label="input2"
-                                             disabled={true}
-                                             {...register('secondTokenAmount', {required: true})}
+                                             disabled={disableToken}
+                                             {...register('tokenAmount', {required: true})}
                                              status="primary"
                                          />
                                      </Grid>
                                      <Grid  lg={3} xs={12} justify='center'>
-                                         {showTokenButton(token)}
+                                         {showTokenButton(tokenName)}
                                      </Grid>
                                      <Spacer y={2} />
                                      <Grid lg={12} xs={12} justify='center'>
@@ -144,8 +198,8 @@ const Pool: NextPage = () => {
                     <Text id="modal-description">
                     </Text>
                     <Button.Group size="xl" vertical color="gradient" flat>
-                        <Button onClick={() => chooseToken('secondT')}><Text color="white">SecondT</Text></Button>
-                        <Button onClick={() => chooseToken('thirdT')}> <Text color="white">ThirdT</Text></Button>
+                        <Button onClick={() => chooseToken(tokenSymbols[0])}><Text color="white">SecondT</Text></Button>
+                        <Button onClick={() => chooseToken(tokenSymbols[1])}> <Text color="white">ThirdT</Text></Button>
                     </Button.Group>
 
                 </Modal.Body>
