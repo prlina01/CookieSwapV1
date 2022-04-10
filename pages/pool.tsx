@@ -11,6 +11,7 @@ import {Factory as FactoryType, Factory__factory, Token__factory} from "../typec
 import Factory from '../artifacts/contracts/Factory.sol/Factory.json'
 import {Token as TokenType} from '../typechain'
 import Exchange from '../artifacts/contracts/Exchange.sol/Exchange.json'
+import {router} from "next/client";
 
 const Pool: NextPage = () => {
 
@@ -30,6 +31,7 @@ const Pool: NextPage = () => {
             const provider = new ethers.providers.AlchemyProvider('rinkeby')
             let firstToken = new ethers.Contract(deployedAddresses.FIRST_TOKEN, Token.abi, provider)
             let secondToken = new ethers.Contract(deployedAddresses.SECOND_TOKEN, Token.abi, provider)
+
             // const signer = provider.getSigner()
             // const tokenFactory = new Token__factory()
             // const firstToken = tokenFactory.attach(deployedAddresses.FIRST_TOKEN)
@@ -56,8 +58,8 @@ const Pool: NextPage = () => {
             setValue('ethAmount', value)
         }
     }
-    const chooseToken = async (tokenName: string) => {
-        setTokenName(tokenName)
+    const chooseToken = async (_tokenName: string) => {
+        setTokenName(_tokenName)
         setVisible(false)
 
         // input field has not been typed in
@@ -65,16 +67,7 @@ const Pool: NextPage = () => {
 
         // ubacen odredjen broj eth-a zelimo da vidimo koliko druge valute uzimamo
 
-        const provider = new ethers.providers.AlchemyProvider('rinkeby')
-
-        let tokenAddress
-        if(tokenName == tokenSymbols[0]) tokenAddress = deployedAddresses.FIRST_TOKEN
-        else tokenAddress = deployedAddresses.SECOND_TOKEN
-
-        let factory = new ethers.Contract(deployedAddresses.FACTORY, Factory.abi, provider)
-        let exchangeAddress = await factory.getExchange(tokenAddress)
-        let exchange = new ethers.Contract(exchangeAddress, Exchange.abi, provider)
-        // console.log(ethers.utils.parseEther(ethAmount))
+        const exchange = await _getExchangeFromTokenName(false)
         let amountOfTokens
         try {
             amountOfTokens = await exchange.getTokenAmount(ethers.utils.parseEther(ethAmount))
@@ -87,12 +80,53 @@ const Pool: NextPage = () => {
 
     }
 
+    const _getExchangeFromTokenName = async (isAddingLiquidity: boolean) => {
+        let provider
+        let signer
+        let tokenAddress
+        let exchange
+        if(tokenName == tokenSymbols[0]) tokenAddress = deployedAddresses.FIRST_TOKEN
+        else tokenAddress = deployedAddresses.SECOND_TOKEN
+
+        if(isAddingLiquidity) {
+            const web3Modal = new Web3Modal()
+            const connection = await web3Modal.connect()
+            provider = new ethers.providers.Web3Provider(connection)
+            signer = provider.getSigner()
+            let factory = new ethers.Contract(deployedAddresses.FACTORY, Factory.abi, signer)
+            let exchangeAddress = await factory.getExchange(tokenAddress)
+            exchange = new ethers.Contract(exchangeAddress, Exchange.abi, signer)
+        } else {
+            provider = new ethers.providers.AlchemyProvider('rinkeby')
+            let factory = new ethers.Contract(deployedAddresses.FACTORY, Factory.abi, provider)
+            let exchangeAddress = await factory.getExchange(tokenAddress)
+            exchange = new ethers.Contract(exchangeAddress, Exchange.abi, provider)
+        }
+
+        return exchange
+    }
+
     const showTokenButton = (tokenName: string) => {
         return(
             <Button auto  color="gradient" onClick={() => setVisible(true)}>
                 {tokenName ? tokenName : 'Select'} ∨
             </Button>
         )
+    }
+
+    const addLiquidityHandler = async (item: any) => {
+        let {ethAmount, tokenAmount} = item
+
+        if (typeof window.ethereum == "undefined") {
+            //TODO vidi kasnije sa modalom -> treba da se stavi nemate metamask instalirano...
+            return
+        }
+
+        const exchange = await _getExchangeFromTokenName(true)
+        let transaction = exchange.addLiquidity(tokenAmount, {value: ethAmount})
+        await transaction.wait()
+        await router.push('/')
+
     }
 
         return(
@@ -125,7 +159,7 @@ const Pool: NextPage = () => {
                         </>
                     ) : (
                          <>
-                             <form onSubmit={handleSubmit(() => alert('ide gas'))}>
+                             <form onSubmit={handleSubmit(addLiquidityHandler)}>
                                  <Grid.Container gap={2} justify="center">
                                      <Grid  lg={9} xs={12}>
                                          <Input
