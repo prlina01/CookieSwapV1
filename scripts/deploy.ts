@@ -1,29 +1,34 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// When running the script with `npx hardhat run <script>` you'll find the Hardhat
-// Runtime Environment's members available in the global scope.
 import { ethers } from "hardhat";
-
+import {Token as TokenType} from '../typechain/Token'
 async function main() {
-  // Hardhat always runs the compile task when running scripts with its command
-  // line interface.
-  //
-  // If this script is run directly using `node` you may want to call compile
-  // manually to make sure everything is compiled
-  // await hre.run('compile');
+  const Token = await ethers.getContractFactory("Token");
 
-  // We get the contract to deploy
-  const Greeter = await ethers.getContractFactory("Greeter");
-  const greeter = await Greeter.deploy("Hello, Hardhat!");
+  const firstToken: TokenType = await Token.deploy("Mango Token", "ManT", 1000);
+  await firstToken.deployed();
+  console.log("First token deployed to:", firstToken.address);
 
-  await greeter.deployed();
+  const secondToken: TokenType = await Token.deploy("Banana Token", "BanT", 1000);
+  await secondToken.deployed();
+  console.log("Second token deployed to:", secondToken.address);
 
-  console.log("Greeter deployed to:", greeter.address);
+  const Factory = await ethers.getContractFactory("Factory");
+  const factory = await Factory.deploy()
+  await factory.deployed()
+  console.log("Factory deployed to:", factory.address);
+
+  const Exchange = await ethers.getContractFactory('Exchange')
+
+  const firstExchange = await Exchange.deploy(firstToken.address);
+  await firstExchange.deployed();
+  console.log("First exchange deployed to:", firstExchange.address);
+
+  const secondExchange = await Exchange.deploy(secondToken.address);
+  await secondExchange.deployed();
+  console.log("Second exchange deployed to:", secondExchange.address);
+
+
+
 }
-
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
