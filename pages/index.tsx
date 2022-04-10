@@ -20,6 +20,7 @@ import {
   Grid,
   FormElement
 } from "@nextui-org/react";
+import Exchange from "../artifacts/contracts/Exchange.sol/Exchange.json";
 
 
 const Home: NextPage = () => {
@@ -31,8 +32,10 @@ const Home: NextPage = () => {
 
     const signer = provider.getSigner()
 
+
+
   }
-  const {setVisible, bindings} = useModal();
+    const {setVisible, bindings} = useModal();
   const [firstToken, setFirstToken] = useState<string>("")
   const [secondToken, setSecondToken] = useState<string>("");
   const [lastBtnAccessedModal, setLastBtnAccessedModal] = useState<string>("")
@@ -68,7 +71,7 @@ const Home: NextPage = () => {
 
   const _chooseButton = (tokenName: string, tokenButtonNumber: string) => {
     return (
-        <Button auto shadow color="gradient" onClick={() => {
+        <Button auto  color="gradient" onClick={() => {
           setLastBtnAccessedModal(tokenButtonNumber)
           setVisible(true)
         }
@@ -76,13 +79,32 @@ const Home: NextPage = () => {
     )
   }
 
-  const chooseToken = (tokenButtonNumber: string, tokenName: string) => {
+  const chooseToken = async (tokenButtonNumber: string, tokenName: string) => {
     if (tokenButtonNumber === 'first') {
       setFirstToken(tokenName)
     } else if (tokenButtonNumber === 'second') {
       setSecondToken(tokenName)
     }
     setVisible(false)
+
+    if(firstTokenAmount && secondTokenAmount) {
+      if(firstToken == 'ETH' && secondToken == 'second') {
+        const web3Modal = new Web3Modal()
+        const connection = await web3Modal.connect()
+        const provider = new ethers.providers.AlchemyProvider(connection)
+
+        const signer = provider.getSigner()
+        // ubacen odredjen broj eth-a zelimo da vidimo koliko druge valute uzimamo
+        let eth_to_token_1_address = '0x000000000'
+        let exchange = new ethers.Contract(eth_to_token_1_address, Exchange.abi, signer )
+        let transaction = await exchange.getTokenAmount(firstTokenAmount)
+        let tx = await transaction.wait()
+        setValue('secondTokenAmount', tx.toNumber())
+      }
+    }
+
+
+
   }
 
   const handleArrowClick = () => {
@@ -90,6 +112,7 @@ const Home: NextPage = () => {
     setFirstToken(secondToken)
     setSecondToken(temp)
     temp = firstTokenAmount
+
     setValue('firstTokenAmount', secondTokenAmount)
     setValue('secondTokenAmount', temp)
   }
@@ -100,12 +123,23 @@ const Home: NextPage = () => {
     const value = e.target.value
     const isValid = value.match(/^[+]?([0-9]+\.?[0-9]*|\.[0-9]+)$/)
     if(!isValid || value.length > 15) setValue('firstTokenAmount', value.substring(0,value.length - 1))
+    else {
+      setValue('firstTokenAmount', value)
+    }
   }
 
   return (
       <div>
         <Spacer y={10} />
+
         <Container xs  >
+          <Button.Group size="xl"  color="gradient" flat>
+
+            <Link href={'/'}><Button><Text color="black">Swap</Text></Button></Link>
+            <Link href={'/pool'}><Button><Text color="white">Pool</Text></Button></Link>
+          </Button.Group>
+
+
           <Card css={{bgColor: "$blue900"}}>
             <Text h1 size={60} css={{
               textGradient: "45deg, $blue500 -20%, $pink500 50%",
@@ -157,7 +191,7 @@ const Home: NextPage = () => {
                 </Grid>
                 <Spacer y={2} />
                 <Grid lg={12} xs={12} justify='center'>
-                  <Button auto color='gradient'>Start</Button>
+                  <Button auto type="submit" color='gradient'>Start</Button>
                 </Grid>
                 {/*<Grid lg={3} xs={0} />*/}
               </Grid.Container>
@@ -186,9 +220,9 @@ const Home: NextPage = () => {
               <Text id="modal-description">
               </Text>
                 <Button.Group size="xl" vertical color="gradient" flat>
-                  <Button onClick={() => chooseToken(lastBtnAccessedModal, 'ETH')}>ETH</Button>
-                  <Button onClick={() => chooseToken(lastBtnAccessedModal, 'secondT')}>SecondT</Button>
-                  <Button onClick={() => chooseToken(lastBtnAccessedModal, 'thirdT')}> ThirdT</Button>
+                  <Button onClick={() => chooseToken(lastBtnAccessedModal, 'ETH')}><Text color="white">ETH</Text></Button>
+                  <Button onClick={() => chooseToken(lastBtnAccessedModal, 'secondT')}><Text color="white">SecondT</Text></Button>
+                  <Button onClick={() => chooseToken(lastBtnAccessedModal, 'thirdT')}> <Text color="white">ThirdT</Text></Button>
                 </Button.Group>
 
             </Modal.Body>
