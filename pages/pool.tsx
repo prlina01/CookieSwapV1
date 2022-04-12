@@ -11,7 +11,7 @@ import {Factory as FactoryType, Factory__factory, Token__factory} from "../typec
 import Factory from '../artifacts/contracts/Factory.sol/Factory.json'
 import {Token as TokenType} from '../typechain'
 import Exchange from '../artifacts/contracts/Exchange.sol/Exchange.json'
-import {router} from "next/client";
+import {useRouter} from "next/router";
 
 const Pool: NextPage = () => {
 
@@ -22,8 +22,10 @@ const Pool: NextPage = () => {
     const ethAmount = useWatch({control, name: 'ethAmount'})
 
     const [disableToken, setDisableToken] = useState<boolean>(true);
+    const router = useRouter();
 
-
+    const [isWaiting, setIsWaiting] = useState<boolean>(false);
+    const [errorMsg, setErrorMsg] = useState<string>("")
 
     const [tokenSymbols, setTokenSymbols] = useState<string[]>([])
     useEffect(() => {
@@ -60,27 +62,53 @@ const Pool: NextPage = () => {
     }
     const chooseToken = async (_tokenName: string) => {
         setTokenName(_tokenName)
+        setValue('tokenAmount', "")
         setVisible(false)
 
         // input field has not been typed in
         if(!ethAmount) return
 
-        // ubacen odredjen broj eth-a zelimo da vidimo koliko druge valute uzimamo
+        const exchange = await _getExchangeFromTokenName(false, _tokenName)
 
-        const exchange = await _getExchangeFromTokenName(false)
         let amountOfTokens
+
         try {
-            amountOfTokens = await exchange.getTokenAmount(ethers.utils.parseEther(ethAmount))
+            let parsedEther = ethers.utils.parseEther(ethAmount)
+            amountOfTokens = await exchange.getTokenAmountWhenAddingLiquidity(parsedEther)
         } catch (e) {
             setDisableToken(false)
             return
         }
 
-        setValue('tokenAmount', ethers.utils.parseEther(amountOfTokens))
+        setValue('tokenAmount', ethers.utils.formatEther(amountOfTokens))
+        setDisableToken(true)
+    }
+
+    const calculateTokenHandler = async () => {
+        // token has not been selected
+        if(!tokenName) return
+        // 0 eth has been inputted
+        if(!ethAmount) return
+
+        setValue('tokenAmount', "")
+        const exchange = await _getExchangeFromTokenName(false, tokenName)
+
+        let amountOfTokens
+
+        try {
+            let parsedEther = ethers.utils.parseEther(ethAmount)
+            amountOfTokens = await exchange.getTokenAmountWhenAddingLiquidity(parsedEther)
+        } catch (e) {
+            setDisableToken(false)
+            return
+        }
+
+        setValue('tokenAmount', ethers.utils.formatEther(amountOfTokens))
+        setDisableToken(true)
 
     }
 
-    const _getExchangeFromTokenName = async (isAddingLiquidity: boolean) => {
+    const _getExchangeFromTokenName = async (isAddingLiquidity: boolean, tokenName: string) => {
         let provider
         let signer
         let tokenAddress
@@ -118,14 +146,44 @@ const Pool: NextPage = () => {
         let {ethAmount, tokenAmount} = item
 
         if (typeof window.ethereum == "undefined") {
-            //TODO vidi kasnije sa modalom -> treba da se stavi nemate metamask instalirano...
+            setVisible(true)
+            setErrorMsg(`Metamask is not installed in your browser!`)
             return
         }
 
-        const exchange = await _getExchangeFromTokenName(true)
-        let transaction = exchange.addLiquidity(tokenAmount, {value: ethAmount})
+        const exchange = await _getExchangeFromTokenName(true, tokenName)
+
+        let tokenAddress
+        if(tokenName == tokenSymbols[0]) tokenAddress = deployedAddresses.FIRST_TOKEN
+        else tokenAddress = deployedAddresses.SECOND_TOKEN
+
+        const web3Modal = new Web3Modal()
+        const connection = await web3Modal.connect()
+        let provider = new ethers.providers.Web3Provider(connection)
+        let signer = provider.getSigner()
+        let token = new ethers.Contract(tokenAddress, Token.abi, signer)
+
+        let currentEthBalance = ethers.utils.formatEther(await signer.getBalance())
+        let currentTokenBalance = ethers.utils.formatEther(await token.balanceOf(await signer.getAddress()))
+        let firstCondtion = parseInt(currentTokenBalance) < parseInt(tokenAmount)
+        let secondCondition = parseInt(currentEthBalance) < parseInt(ethAmount)
+        if(secondCondition) {
+            setVisible(true)
+            setErrorMsg(`Not enough ETH`)
+            return
+        } else if(firstCondtion) {
+            setVisible(true)
+            setErrorMsg(`Not enough ${tokenName}!`)
+            return
+        }
+        let tx = await token.approve(exchange.address, ethers.utils.parseEther(tokenAmount))
+        setIsWaiting(true)
+        await tx.wait()
+        let transaction = await exchange.addLiquidity(ethers.utils.parseEther(tokenAmount), {value: ethers.utils.parseEther(ethAmount)})
         await transaction.wait()
-        await router.push('/')
+        setIsWaiting(false)
+        setTokenName('')
+        // await router.push('/')
 
     }
 
@@ -134,13 +192,12 @@ const Pool: NextPage = () => {
             <Spacer y={10} />
 
             <Container xs  >
-                <Button.Group size="xl"  color="gradient">
-
-                    <Link href={'/'}><Button><Text color="white" >Swap</Text></Button></Link>
-                    <Link href={'pool'}><Button><Text color="black" >Pool</Text></Button></Link>
-                </Button.Group>
-
-
+                {!isWaiting && (
+                    <Button.Group size="xl"  color="gradient">
+                        <Link href={'/'}><Button><Text color="white" >Swap</Text></Button></Link>
+                        <Link href={'pool'}><Button><Text color="black" >Pool</Text></Button></Link>
+                    </Button.Group>
+                )}
                 <Card css={{bgColor: "$blue900"}}>
                     {addLiquidity &&
                         <button className="text-xs" onClick={() => setAddLiquidity(!addLiquidity)}>
@@ -151,14 +208,14 @@ const Pool: NextPage = () => {
                         textGradient: "45deg, $blue500 -20%, $pink500 50%",
                         textAlign: "center"
                     }}>
-                        {addLiquidity ? "Add liquidity":"Pool"}
+                        {isWaiting ? "Waiting for the transactions.." : (addLiquidity ? "Add liquidity":"Pool")}
                     </Text>
                     {!addLiquidity ? (
                         <>
                             <Button color="primary" onClick={() => setAddLiquidity(!addLiquidity)}>Add liquidity</Button>
                         </>
                     ) : (
-                         <>
+                         <> {!isWaiting ? (
                              <form onSubmit={handleSubmit(addLiquidityHandler)}>
                                  <Grid.Container gap={2} justify="center">
                                      <Grid  lg={9} xs={12}>
@@ -173,13 +230,14 @@ const Pool: NextPage = () => {
                                              {...register('ethAmount', {required: true, maxLength: 15} )}
                                              status="primary"
                                              onChange={(e) => checkInputHandler(e) }
+                                             onBlur={() => calculateTokenHandler()}
                                          />
                                      </Grid>
                                      <Grid  lg={3} xs={12} justify='center'>
                                          <Button auto  color="gradient" css={{cursor: 'not-allowed'}} >ETH</Button>
                                      </Grid>
                                      <Grid lg={9} justify='center' xs={12}>
-                                             <Text color='primary' className="text-xs" size={65} >&#43;</Text>
+                                         <Text color='primary' className="text-xs" size={65} >&#43;</Text>
                                      </Grid>
                                      <Grid  lg={3} xs={12} justify='center'>
                                      </Grid>
@@ -207,6 +265,10 @@ const Pool: NextPage = () => {
                                  </Grid.Container>
 
                              </form>
+
+                         ) : (
+                             <></>
+                         )}
                          </>
                     )}
                 </Card>
@@ -222,26 +284,46 @@ const Pool: NextPage = () => {
                 css={{bgColor: 'black'}}
             >
 
+                {!errorMsg ? (
+                    <>
+                        <Modal.Header css={{cursor: 'default'}}>
+                            <Text id="modal-title" size={18}>
+                                Choose a currency
+                            </Text>
+                        </Modal.Header>
+                        <Modal.Body css={{cursor: 'default'}}>
+                            <Text id="modal-description">
+                            </Text>
+                            <Button.Group size="xl" vertical color="gradient" flat>
+                                <Button onClick={() => chooseToken(tokenSymbols[0])}><Text color="white">{tokenSymbols[0]}</Text></Button>
+                                <Button onClick={() => chooseToken(tokenSymbols[1])}> <Text color="white">{tokenSymbols[1]}</Text></Button>
+                            </Button.Group>
 
-                <Modal.Header css={{cursor: 'default'}}>
-                    <Text id="modal-title" size={18}>
-                        Choose a currency
-                    </Text>
-                </Modal.Header>
-                <Modal.Body css={{cursor: 'default'}}>
-                    <Text id="modal-description">
-                    </Text>
-                    <Button.Group size="xl" vertical color="gradient" flat>
-                        <Button onClick={() => chooseToken(tokenSymbols[0])}><Text color="white">SecondT</Text></Button>
-                        <Button onClick={() => chooseToken(tokenSymbols[1])}> <Text color="white">ThirdT</Text></Button>
-                    </Button.Group>
+                        </Modal.Body>
+                        <Modal.Footer css={{cursor: 'default'}}>
+                            {/*<Button auto color="error" >*/}
+                            {/*  Ok*/}
+                            {/*</Button>*/}
+                        </Modal.Footer>
 
-                </Modal.Body>
-                <Modal.Footer css={{cursor: 'default'}}>
-                    {/*<Button auto color="error" >*/}
-                    {/*  Ok*/}
-                    {/*</Button>*/}
-                </Modal.Footer>
+                    </>
+                ) : (
+                    <>
+                        <Modal.Header css={{cursor: 'default'}}>
+                            <Text id="modal-title" css={{textGradient: "45deg, $blue500 -20%, $pink500 50%"}} size={40}>
+                                {errorMsg}
+                            </Text>
+                        </Modal.Header>
+                        <Modal.Body css={{cursor: 'default'}}>
+                            <Button onClick={() => {
+                                setVisible(false)
+                                setErrorMsg("")
+                            }}  color="error" >
+                              Ok
+                            </Button>
+                        </Modal.Body>
+                    </>
+                )}
             </Modal>
 
         </div>

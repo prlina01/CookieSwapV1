@@ -1,16 +1,18 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IFactory {
-    function getExchange(address _tokenAddress) external returns (address);
+    function getExchange(address _tokenAddress) external view returns (address);
 }
 
 interface IExchange {
     function ethToTokenSwap(uint256 _minTokens) external payable;
 
     function ethToTokenTransfer(uint256 _minTokens, address _recipient) external payable;
+    function getTokenAmount(uint _ethSold) external view returns(uint);
 }
 
 
@@ -18,7 +20,7 @@ contract Exchange is ERC20 {
     address public tokenAddress;
     address public factoryAddress;
 
-    constructor(address _token) ERC20("MightySwap-V1", "Mighty-V1") {
+    constructor(address _token, string memory _lpTokenName, string memory _lpTokenSymbol) ERC20(_lpTokenName, _lpTokenSymbol) {
         require(_token != address(0), "Invalid token address");
 
         tokenAddress = _token;
@@ -37,24 +39,35 @@ contract Exchange is ERC20 {
         } else {
             uint256 ethReserve = address(this).balance - msg.value;
             uint256 tokenReserve = getReserve();
-            uint256 tokenAmount = (tokenReserve / ethReserve) * msg.value;
+            uint256 tokenAmount = (msg.value * tokenReserve) / ethReserve;
             require(_tokenAmount >= tokenAmount, "insufficient token amount");
 
             IERC20 token = IERC20(tokenAddress);
             token.transferFrom(msg.sender, address(this), tokenAmount);
 
 
-            uint256 liquidity = (msg.value / ethReserve) * totalSupply();
+            uint256 liquidity = (msg.value * totalSupply()) / ethReserve;
             _mint(msg.sender, liquidity);
             return liquidity;
         }
+    }
+    function getTokenAmountWhenAddingLiquidity(uint256 _ethAmount) public view returns(uint256) {
+        uint256 ethReserve = address(this).balance;
+        uint256 tokenReserve = getReserve();
+        uint256 tokenAmount = (tokenReserve * _ethAmount) / ethReserve;
+        return tokenAmount;
+    }
+
+    function getEthAndTokenByToken(uint256 _amount) public view returns(uint256, uint256) {
+        uint256 ethAmount = (address(this).balance * _amount) / totalSupply();
+        uint256 tokenAmount = (getReserve() * _amount) / totalSupply();
+        return (ethAmount, tokenAmount);
     }
 
     function removeLiquidity(uint256 _amount) public returns (uint256, uint256) {
         require(_amount > 0, "invalid amount of tokens");
 
-        uint256 ethAmount = (address(this).balance * _amount) / totalSupply();
-        uint256 tokenAmount = (getReserve() * _amount) / totalSupply();
+        (uint256 ethAmount, uint256 tokenAmount) = getEthAndTokenByToken(_amount);
 
         _burn(msg.sender, _amount);
         payable(msg.sender).transfer(ethAmount);
@@ -91,6 +104,23 @@ contract Exchange is ERC20 {
 
         uint tokenReserve = getReserve();
         return getAmount(_ethSold, address(this).balance, tokenReserve);
+    }
+
+    function getTokenAmountForTokenAmount(address _neededTokenAddress, uint256 _tokenAmount ) public view returns(uint256) {
+        require(_tokenAmount > 0, "tokenAmount is too small");
+
+        uint256 tokenReserve = getReserve();
+
+        uint256 ethAmount =  getAmount(_tokenAmount, tokenReserve, address(this).balance);
+        address exchangeAddress = IFactory(factoryAddress).getExchange(
+            _neededTokenAddress
+        );
+        require(
+            exchangeAddress != address(this) && exchangeAddress != address(0),
+            "invalid exchange address"
+        );
+
+        return IExchange(exchangeAddress).getTokenAmount(ethAmount);
     }
 
     function getEthAmount(uint256 _tokenSold) public view returns (uint256) {
