@@ -134,7 +134,7 @@ const Pool: NextPage = () => {
 
     }
 
-    const _getExchangeFromTokenName = async (isAddingLiquidity: boolean, tokenName: string) => {
+    const _getExchangeFromTokenName = async (isChangingLiquidity: boolean, tokenName: string) => {
         let provider
         let signer
         let tokenAddress
@@ -142,7 +142,7 @@ const Pool: NextPage = () => {
         if(tokenName == tokenSymbols[0]) tokenAddress = deployedAddresses.FIRST_TOKEN
         else tokenAddress = deployedAddresses.SECOND_TOKEN
 
-        if(isAddingLiquidity) {
+        if(isChangingLiquidity) {
             const web3Modal = new Web3Modal()
             const connection = await web3Modal.connect()
             provider = new ethers.providers.Web3Provider(connection)
@@ -229,34 +229,13 @@ const Pool: NextPage = () => {
 
     }
 
-    const showUserLiquidityHandler = async () => {
-        const web3Modal = new Web3Modal()
-        const connection = await web3Modal.connect()
-        let provider = new ethers.providers.Web3Provider(connection)
-        let signer = provider.getSigner()
-        let signerAddress = await signer.getAddress()
-        const firstExchange = await _getExchangeFromTokenName(false, tokenSymbols[0])
-        const secondExchange = await _getExchangeFromTokenName(false, tokenSymbols[1])
-        let firstLpTokenAmount = ethers.utils.formatEther(await firstExchange.balanceOf(signerAddress))
-        let secondLpTokenAmount = ethers.utils.formatEther(await secondExchange.balanceOf(signerAddress))
-        if(firstLpTokenAmount) {
-         let data = await firstExchange.getEthAndTokenByToken(ethers.utils.parseEther(firstLpTokenAmount))
-         let ethAmount = data[0]
-         let tokenAmount = data[1]
-         let elem = {'tokenName': tokenSymbols[0], 'ethAmount': ethAmount,
-             'tokenAmount': tokenAmount, 'lpTokenAmount': firstLpTokenAmount}
-         // @ts-ignore
-            setUserLiquidityPools(oldArray => [...oldArray, elem])
-        }
-        if(secondLpTokenAmount) {
-            let data = await secondExchange.getEthAndTokenByToken(ethers.utils.parseEther(secondLpTokenAmount))
-            let ethAmount = data[0]
-            let tokenAmount = data[1]
-            let elem = {'tokenName': tokenSymbols[1], 'ethAmount': ethAmount,
-                'tokenAmount': tokenAmount, 'lpTokenAmount': secondLpTokenAmount}
-            // @ts-ignore
-            setUserLiquidityPools(oldArray => [...oldArray, elem])
-        }
+    const removeLiquidityHandler = async (liquidityPool: any) => {
+
+        const exchange = await _getExchangeFromTokenName(true, tokenName)
+        const tx = exchange.removeLiquidity(ethers.utils.parseEther(liquidityPool['lpTokenAmount']))
+        setIsWaiting(true)
+        setIsWaiting(false)
+
     }
 
         return(
@@ -298,39 +277,19 @@ const Pool: NextPage = () => {
                                            Liquidity providers <b>earn a 1% fee</b> on all trades proportional to their share of the pool. Fees are added to the pool, accrue in real time and can be claimed by withdrawing your liquidity.
                                        </Text>
                                    </Card>
-                                    {/*<Grid.Container gap={1}>*/}
-                                    {/*    <Grid sm={12} md={6}>*/}
-                                    {/*        <Card hoverable color="gradient" >*/}
-                                    {/*            <Text color={"white"} h1 css={{textAlign: 'center'}}>*/}
-                                    {/*                Next UI*/}
-                                    {/*            </Text>*/}
-                                    {/*            <Text color={"white"} h2> Beautiful and modern React UI library.</Text>*/}
-
-                                    {/*                    <Button  color="secondary">Withdraw 🚀</Button>*/}
-
-                                    {/*        </Card>*/}
-                                    {/*    </Grid>*/}
 
                                     <Grid.Container gap={1}>
                                         <UserAddedLiquidity
                                             _getExchangeFromTokenName={_getExchangeFromTokenName}
+                                            removeLiquidityHandler={removeLiquidityHandler}
                                         />
                                     </Grid.Container>
-
 
                                     <Button ghost css={{mt: '30px', mx: '15%'}} color="primary" onClick={() => setAddLiquidity(!addLiquidity)}>
                                         Add liquidity
                                     </Button>
-
-                                    {/*{userLiquidityPools.map(userLiquidityPool => (*/}
-                                    {/*    <>*/}
-                                    {/*        <Text  color="white">{userLiquidityPool['tokenName']}</Text>*/}
-                                    {/*    </>*/}
-                                    {/*) )}*/}
                                 </>
                             )}
-
-
                         </>
                     ) : (
                          <> {!isWaiting && (

@@ -5,7 +5,7 @@ import { useEffect, useState} from "react";
 import * as deployedAddresses from "../.config";
 import Token from "../artifacts/contracts/Token.sol/Token.json";
 
-export default (props: { _getExchangeFromTokenName: any }) => {
+export default (props: { _getExchangeFromTokenName: any, removeLiquidityHandler: any }) => {
     const [liquidityPools, setLiquidityPools] = useState<any>()
     let [tokenSymbols, setTokenSymbols] = useState<string[]>([])
     let [cardText, setCardText] = useState<string>('')
@@ -25,7 +25,7 @@ export default (props: { _getExchangeFromTokenName: any }) => {
     }, [])
 
     useEffect(() => {
-        void getLiquidityPools()
+        if(tokenSymbols.length == 2) void getLiquidityPools()
     }, [tokenSymbols])
 
     const getLiquidityPools = async () => {
@@ -63,6 +63,7 @@ export default (props: { _getExchangeFromTokenName: any }) => {
         }
         if(liquidity_pools.length > 0) setLiquidityPools(liquidity_pools)
         else setCardText("You haven't added any liquidity")
+        console.log(liquidity_pools)
     }
 
     const parseNum = (num: string) => {
@@ -77,8 +78,8 @@ export default (props: { _getExchangeFromTokenName: any }) => {
             {liquidityPools?.length > 0 ? (
                 liquidityPools?.map((liquidityPool: any) => (
                     <>
-                        <Grid key={liquidityPool['ethAmount']} sm={12} md={liquidityPools.length == 2 ? 6 : 12}>
-                            <Card  hoverable color="primary">
+                        <Grid css={{'@lg': {ml: liquidityPool.length == 2 ? '':'25%'}}} key={liquidityPool['ethAmount']} sm={12} md={6}>
+                            <Card hoverable color="primary">
                                 <Text weight="bold" size={30} css={{textAlign: 'center', mb: '15%',
                                     textGradient: "45deg, $blue500 -20%, $pink500 50%"
                                 }}>
@@ -94,7 +95,7 @@ export default (props: { _getExchangeFromTokenName: any }) => {
                                 <Text color="white">
                                     LPTokens: {parseNum(liquidityPool['lpTokenAmount'])}
                                 </Text>
-                                <Button css={{mt: '15%'}}  color="secondary">Withdraw 🚀</Button>
+                                <Button onClick={() => props.removeLiquidityHandler(liquidityPool)} css={{mt: '15%'}}  color="secondary">Withdraw 🚀</Button>
                             </Card>
                         </Grid>
                     </>
