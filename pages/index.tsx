@@ -1,22 +1,18 @@
 import type { NextPage } from 'next'
 import {ethers} from "ethers";
-import { useEffect, useState, useMemo, ChangeEvent} from "react";
+import { useEffect, useState, ChangeEvent} from "react";
 import {useForm, useWatch} from "react-hook-form";
 import Link from 'next/link'
 import Web3Modal from 'web3modal'
 import {
   Input,
   Container,
-  Row,
-  Col,
   Spacer,
   Card,
   Text,
   Button,
   Modal,
   useModal,
-  Loading,
-  Radio,
   Grid,
   FormElement
 } from "@nextui-org/react";
@@ -94,60 +90,168 @@ const Home: NextPage = () => {
 
   const handleSwap = async (item: any) => {
     let {firstTokenAmount, secondTokenAmount} = item
-
     if (typeof window.ethereum == "undefined") {
       setVisible(true)
       setErrorMsg(`Metamask is not installed in your browser!`)
       return
     }
 
-    let tokenAddress
-    let exchange
     if(firstTokenName == 'ETH' && secondTokenName == tokenSymbols[0] ||
         firstTokenName == tokenSymbols[0] && secondTokenName == 'ETH')
     {
-      let tokenName = tokenSymbols[0]
-      exchange = await _getExchangeFromTokenName(true, tokenName)
-      tokenAddress = deployedAddresses.FIRST_TOKEN
+      const exchange = await _getExchangeFromTokenName(true, tokenSymbols[0])
 
-    }
-    else if(firstTokenName == 'ETH' && secondTokenName == tokenSymbols[1] ||
+      let parsedFirstToken = ethers.utils.parseEther(firstTokenAmount)
+      let parsedSecondToken = ethers.utils.parseEther(secondTokenAmount)
+
+
+
+      const web3Modal = new Web3Modal()
+      const connection = await web3Modal.connect()
+      let provider = new ethers.providers.Web3Provider(connection)
+      let signer = provider.getSigner()
+      let firstToken = new ethers.Contract(deployedAddresses.FIRST_TOKEN, Token.abi, signer)
+
+      let firstTokenBalance = firstTokenName == 'ETH' ?
+          ethers.utils.formatEther(await signer.getBalance()) :
+          ethers.utils.formatEther(await firstToken.balanceOf(await signer.getAddress()))
+      let secondTokenBalance = firstTokenName == 'ETH' ?
+          ethers.utils.formatEther(await firstToken.balanceOf(await signer.getAddress())) :
+          ethers.utils.formatEther(await signer.getBalance())
+
+      let firstCondition = parseInt(firstTokenBalance) < parseInt(firstTokenAmount)
+      let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
+      if(secondCondition) {
+        setVisible(true)
+        setErrorMsg(`Not enough ${secondTokenName}`)
+        return
+      } else if(firstCondition) {
+        setVisible(true)
+        setErrorMsg(`Not enough ${firstTokenName}!`)
+        return
+      }
+
+      if(firstTokenName == tokenSymbols[0]) {
+        let tx = await firstToken.approve(exchange.address, parsedFirstToken)
+        setIsWaiting(true)
+        await tx.wait()
+      }
+
+
+      let swap = firstTokenName == 'ETH' ?
+          await exchange.ethToTokenSwap(parsedSecondToken, {value: parsedFirstToken} ) :
+          await exchange.tokenToEthSwap(parsedFirstToken, parsedSecondToken)
+
+      setIsWaiting(true)
+      await swap.wait()
+      setIsWaiting(false)
+
+
+    } else if(firstTokenName == 'ETH' && secondTokenName == tokenSymbols[1] ||
         firstTokenName == tokenSymbols[1] && secondTokenName == 'ETH')
     {
-      let tokenName = tokenSymbols[1]
-      exchange = await _getExchangeFromTokenName(true, tokenName)
-      tokenAddress = deployedAddresses.SECOND_TOKEN
-    } else if(true) {}
+      const exchange = await _getExchangeFromTokenName(true, tokenSymbols[1])
 
-    const web3Modal = new Web3Modal()
-    const connection = await web3Modal.connect()
-    let provider = new ethers.providers.Web3Provider(connection)
-    let signer = provider.getSigner()
-    // let token = new ethers.Contract(tokenAddress, Token.abi, signer)
-    //
-    // let currentEthBalance = ethers.utils.formatEther(await signer.getBalance())
-    // let currentTokenBalance = ethers.utils.formatEther(await token.balanceOf(await signer.getAddress()))
-    // let firstCondition = parseInt(currentTokenBalance) < parseInt(tokenAmount)
-    // let secondCondition = parseInt(currentEthBalance) < parseInt(ethAmount)
-    // if(secondCondition) {
-    //   setVisible(true)
-    //   setErrorMsg(`Not enough ETH`)
-    //   return
-    // } else if(firstCondition) {
-    //   setVisible(true)
-    //   setErrorMsg(`Not enough ${tokenName}!`)
-    //   return
-    // }
-    // let tx = await token.approve(exchange.address, ethers.utils.parseEther(tokenAmount))
-    // setIsWaiting(true)
-    // await tx.wait()
-    // let transaction = await exchange.addLiquidity(ethers.utils.parseEther(tokenAmount), {value: ethers.utils.parseEther(ethAmount)})
-    // await transaction.wait()
-    // setIsWaiting(false)
-    // setTokenName('')
+      let parsedFirstToken = ethers.utils.parseEther(firstTokenAmount)
+      let parsedSecondToken = ethers.utils.parseEther(secondTokenAmount)
+
+      const web3Modal = new Web3Modal()
+      const connection = await web3Modal.connect()
+      let provider = new ethers.providers.Web3Provider(connection)
+      let signer = provider.getSigner()
+      let secondToken = new ethers.Contract(deployedAddresses.SECOND_TOKEN, Token.abi, signer)
+
+      let firstTokenBalance = firstTokenName == 'ETH' ?
+          ethers.utils.formatEther(await signer.getBalance()) :
+          ethers.utils.formatEther(await secondToken.balanceOf(await signer.getAddress()))
+      let secondTokenBalance = firstTokenName == 'ETH' ?
+          ethers.utils.formatEther(await secondToken.balanceOf(await signer.getAddress())) :
+          ethers.utils.formatEther(await signer.getBalance())
+
+      let firstCondition = parseInt(firstTokenBalance) < parseInt(firstTokenAmount)
+      let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
+      if(secondCondition) {
+        setVisible(true)
+        setErrorMsg(`Not enough ${secondTokenName}`)
+        return
+      } else if(firstCondition) {
+        setVisible(true)
+        setErrorMsg(`Not enough ${firstTokenName}!`)
+        return
+      }
+
+      if(firstTokenName == tokenSymbols[1]) {
+        let tx = await secondToken.approve(exchange.address, parsedFirstToken)
+        setIsWaiting(true)
+        await tx.wait()
+      }
 
 
+      let swap = firstTokenName == 'ETH' ?
+          await exchange.ethToTokenSwap(parsedSecondToken, {value: parsedFirstToken} ) :
+          await exchange.tokenToEthSwap(parsedFirstToken, parsedSecondToken)
 
+      setIsWaiting(true)
+      await swap.wait()
+      setIsWaiting(false)
+
+    } else if(firstTokenName == tokenSymbols[0] && secondTokenName == tokenSymbols[1] ||
+        firstTokenName == tokenSymbols[1] && secondTokenName == tokenSymbols[0])
+    {
+      const firstExchange = await _getExchangeFromTokenName(true, tokenSymbols[0])
+      const secondExchange = await _getExchangeFromTokenName(true, tokenSymbols[1])
+
+      let parsedFirstToken = ethers.utils.parseEther(firstTokenAmount)
+      let parsedSecondToken = ethers.utils.parseEther(secondTokenAmount)
+
+      const web3Modal = new Web3Modal()
+      const connection = await web3Modal.connect()
+      let provider = new ethers.providers.Web3Provider(connection)
+      let signer = provider.getSigner()
+      let firstToken = new ethers.Contract(deployedAddresses.FIRST_TOKEN, Token.abi, signer)
+      let secondToken = new ethers.Contract(deployedAddresses.SECOND_TOKEN, Token.abi, signer)
+      let signerAddress = await signer.getAddress()
+      let firstTokenBalance = firstTokenName == tokenSymbols[0] ?
+          ethers.utils.formatEther(await firstToken.balanceOf(signerAddress)) :
+          ethers.utils.formatEther(await secondToken.balanceOf(signerAddress))
+      let secondTokenBalance = firstTokenName == tokenSymbols[1] ?
+          ethers.utils.formatEther(await secondToken.balanceOf(signerAddress)) :
+          ethers.utils.formatEther(await firstToken.balanceOf(signerAddress))
+
+      let firstCondition = parseInt(firstTokenBalance) < parseInt(firstTokenAmount)
+      let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
+      if(secondCondition) {
+        setVisible(true)
+        setErrorMsg(`Not enough ${secondTokenName}`)
+        return
+      } else if(firstCondition) {
+        setVisible(true)
+        setErrorMsg(`Not enough ${firstTokenName}!`)
+        return
+      }
+
+      if(firstTokenName == tokenSymbols[0]) {
+        let tx = await firstToken.approve(firstExchange.address, parsedFirstToken)
+        setIsWaiting(true)
+        await tx.wait()
+      } else if(firstTokenName == tokenSymbols[1]) {
+        let tx = await secondToken.approve(secondExchange.address, parsedFirstToken)
+        setIsWaiting(true)
+        await tx.wait()
+      }
+
+      let swap = firstTokenName == tokenSymbols[0] ?
+          await firstExchange.tokenToTokenSwap(parsedFirstToken, parsedSecondToken, deployedAddresses.SECOND_TOKEN) :
+          await secondExchange.tokenToTokenSwap(parsedFirstToken, parsedSecondToken, deployedAddresses.FIRST_TOKEN)
+
+      setIsWaiting(true)
+      await swap.wait()
+      setIsWaiting(false)
+
+    }
+
+    setValue('firstTokenAmount', "")
+    setValue('secondTokenAmount', "")
 
   }
 
@@ -257,12 +361,6 @@ const Home: NextPage = () => {
 
     if (!firstTokenAmount) return
 
-    let provider = new ethers.providers.AlchemyProvider('rinkeby')
-    let factory = new ethers.Contract(deployedAddresses.FACTORY, Factory.abi, provider)
-    let exchangeAddress1 = await factory.getExchange(deployedAddresses.FIRST_TOKEN)
-    let exchangeAddress2 = await factory.getExchange(deployedAddresses.SECOND_TOKEN)
-    console.log(exchangeAddress1, exchangeAddress2)
-
     await _showTokenAmount(firstTokenName, secondTokenName)
 
   }
@@ -332,72 +430,75 @@ const Home: NextPage = () => {
         <Spacer y={10} />
 
         <Container xs  >
+          {!isWaiting && (
           <Button.Group size="xl"  color="gradient" flat>
 
             <Link href={'/'}><Button><Text color="black">Swap</Text></Button></Link>
             <Link href={'/pool'}><Button><Text color="white">Pool</Text></Button></Link>
           </Button.Group>
-
+          )};
 
           <Card css={{bgColor: "$blue900"}}>
             <Text h1 size={60} css={{
               textGradient: "45deg, $blue500 -20%, $pink500 50%",
               textAlign: "center"
             }}>
-              Swap
+              {!isWaiting ? "Swap" : "Waiting for the transactions.."}
             </Text>
-            <form onSubmit={handleSubmit(handleSwap)}>
-              <Grid.Container gap={2} justify="center">
-                <Grid  lg={9} xs={12}>
-                  <Input
-                      fullWidth
-                      rounded
-                      bordered
-                      placeholder="0.00"
-                      color="primary"
-                      size="xl"
-                      aria-label="input1"
-                      {...register('firstTokenAmount', {required: true, maxLength: 15, min: 1} )}
-                      status="primary"
-                      onChange={(e) => checkInputHandler(e) }
-                      onBlur={() => calculateTokenHandler()}
+            {!isWaiting && (
+                <form onSubmit={handleSubmit(handleSwap)}>
+                  <Grid.Container gap={2} justify="center">
+                    <Grid  lg={9} xs={12}>
+                      <Input
+                          fullWidth
+                          rounded
+                          bordered
+                          placeholder="0.00"
+                          color="primary"
+                          size="xl"
+                          aria-label="input1"
+                          {...register('firstTokenAmount', {required: true, maxLength: 15} )}
+                          status="primary"
+                          onChange={(e) => checkInputHandler(e) }
+                          onBlur={() => calculateTokenHandler()}
 
-                  />
-                </Grid>
-                <Grid  lg={3} xs={12} justify='center'>
-                  {showTokenButton('first')}
-                </Grid>
-                {/*<Grid lg={9} justify='center' xs={12}>*/}
-                {/*  <button className="text-xs" onClick={() => handleArrowClick()}>*/}
-                {/*    <Text className="hover:text-purple-700" color='primary' size={50} >&#8623;</Text>*/}
-                {/*  </button>*/}
-                {/*</Grid>*/}
-                {/*<Grid lg={3} xs={0}/>*/}
-                <Grid lg={9} xs={12}>
-                  <Input
-                      fullWidth
-                      rounded
-                      bordered
-                      placeholder="0.00"
-                      color="primary"
-                      size="xl"
-                      aria-label="input2"
-                      disabled={true}
-                      {...register('secondTokenAmount', {required: true, min: 1})}
-                      status="primary"
-                  />
-                </Grid>
-                <Grid lg={3} xs={12} justify='center'>
-                  {showTokenButton('second')}
-                </Grid>
-                <Spacer y={2} />
-                <Grid lg={12} xs={12} justify='center'>
-                  <Button auto type="submit" color='gradient'>Start</Button>
-                </Grid>
-                {/*<Grid lg={3} xs={0} />*/}
-              </Grid.Container>
+                      />
+                    </Grid>
+                    <Grid  lg={3} xs={12} justify='center'>
+                      {showTokenButton('first')}
+                    </Grid>
+                    {/*<Grid lg={9} justify='center' xs={12}>*/}
+                    {/*  <button className="text-xs" onClick={() => handleArrowClick()}>*/}
+                    {/*    <Text className="hover:text-purple-700" color='primary' size={50} >&#8623;</Text>*/}
+                    {/*  </button>*/}
+                    {/*</Grid>*/}
+                    {/*<Grid lg={3} xs={0}/>*/}
+                    <Grid lg={9} xs={12}>
+                      <Input
+                          fullWidth
+                          rounded
+                          bordered
+                          placeholder="0.00"
+                          color="primary"
+                          size="xl"
+                          aria-label="input2"
+                          disabled={true}
+                          {...register('secondTokenAmount', {required: true})}
+                          status="primary"
+                      />
+                    </Grid>
+                    <Grid lg={3} xs={12} justify='center'>
+                      {showTokenButton('second')}
+                    </Grid>
+                    <Spacer y={2} />
+                    <Grid lg={12} xs={12} justify='center'>
+                      <Button auto type="submit" color='gradient'>Start</Button>
+                    </Grid>
+                    {/*<Grid lg={3} xs={0} />*/}
+                  </Grid.Container>
 
-            </form>
+                </form>
+            )}
 
           </Card>
           <Modal
@@ -410,22 +511,42 @@ const Home: NextPage = () => {
               // @ts-ignore
               css={{bgColor: 'black'}}
           >
+            {!errorMsg ? (
+                <>
+                  <Modal.Header css={{cursor: 'default'}}>
+                    <Text id="modal-title" size={18}>
+                      Choose a currency
+                    </Text>
+                  </Modal.Header>
+                  <Modal.Body css={{cursor: 'default'}}>
+                    <Text id="modal-description">
+                    </Text>
+                    {showModalButtons()}
+                  </Modal.Body>
+                  <Modal.Footer css={{cursor: 'default'}}>
+                    {/*<Button auto color="error" >*/}
+                    {/*  Ok*/}
+                    {/*</Button>*/}
+                  </Modal.Footer>
 
-            <Modal.Header css={{cursor: 'default'}}>
-              <Text id="modal-title" size={18}>
-                Choose a currency
-              </Text>
-            </Modal.Header>
-            <Modal.Body css={{cursor: 'default'}}>
-              <Text id="modal-description">
-              </Text>
-              {showModalButtons()}
-            </Modal.Body>
-            <Modal.Footer css={{cursor: 'default'}}>
-              {/*<Button auto color="error" >*/}
-              {/*  Ok*/}
-              {/*</Button>*/}
-            </Modal.Footer>
+                </>
+            ) : (
+                <>
+                  <Modal.Header css={{cursor: 'default'}}>
+                    <Text id="modal-title" css={{textGradient: "45deg, $blue500 -20%, $pink500 50%"}} size={40}>
+                      {errorMsg}
+                    </Text>
+                  </Modal.Header>
+                  <Modal.Body css={{cursor: 'default'}}>
+                    <Button onClick={() => {
+                      setVisible(false)
+                      setErrorMsg("")
+                    }}  color="error" >
+                      Ok
+                    </Button>
+                  </Modal.Body>
+                </>
+            )}
           </Modal>
 
         </Container>
