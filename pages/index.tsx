@@ -427,7 +427,7 @@ const Home: NextPage = () => {
 
   return (
       <div>
-        <Spacer y={10} />
+        <Spacer y={5} />
 
         <Container xs  >
           {!isWaiting && (
@@ -492,7 +492,7 @@ const Home: NextPage = () => {
                     </Grid>
                     <Spacer y={2} />
                     <Grid lg={12} xs={12} justify='center'>
-                      <Button auto type="submit" color='gradient'>Start</Button>
+                      <Button  auto type="submit" color='gradient'>Start</Button>
                     </Grid>
                     {/*<Grid lg={3} xs={0} />*/}
                   </Grid.Container>

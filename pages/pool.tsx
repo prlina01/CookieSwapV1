@@ -1,5 +1,17 @@
 import {NextPage} from "next";
-import {Button, Container, Spacer, Text, Card, Grid, Input, FormElement, Modal, useModal} from "@nextui-org/react";
+import {
+    Button,
+    Container,
+    Spacer,
+    Text,
+    Card,
+    Grid,
+    Input,
+    FormElement,
+    Modal,
+    useModal,
+    Collapse
+} from "@nextui-org/react";
 import Link from "next/link";
 import {ChangeEvent, useEffect, useState} from "react";
 import {useForm, useWatch} from "react-hook-form";
@@ -12,6 +24,8 @@ import Factory from '../artifacts/contracts/Factory.sol/Factory.json'
 import {Token as TokenType} from '../typechain'
 import Exchange from '../artifacts/contracts/Exchange.sol/Exchange.json'
 import {useRouter} from "next/router";
+import userAddedLiquidity from "../components/UserAddedLiquidity";
+import UserAddedLiquidity from "../components/UserAddedLiquidity";
 
 const Pool: NextPage = () => {
 
@@ -28,8 +42,16 @@ const Pool: NextPage = () => {
     const [errorMsg, setErrorMsg] = useState<string>("")
 
     const [tokenSymbols, setTokenSymbols] = useState<string[]>([])
+
+    const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false)
+
+    // const [userLiquidityPools, setUserLiquidityPools] = useState([])
+
+
     useEffect(() => {
         const setSymbols = async () => {
+            if(typeof window.ethereum != "undefined")
+            window.ethereum.selectedAddress ? setIsLoggedIn(true) : setIsLoggedIn(false)
             const provider = new ethers.providers.AlchemyProvider('rinkeby')
             let firstToken = new ethers.Contract(deployedAddresses.FIRST_TOKEN, Token.abi, provider)
             let secondToken = new ethers.Contract(deployedAddresses.SECOND_TOKEN, Token.abi, provider)
@@ -43,6 +65,7 @@ const Pool: NextPage = () => {
             setTokenSymbols([firstTokenSymbol, secondTokenSymbol])
         }
         void setSymbols()
+        // void showUserLiquidityHandler()
     }, [])
 
     useEffect(() => {
@@ -88,7 +111,10 @@ const Pool: NextPage = () => {
         // token has not been selected
         if(!tokenName) return
         // 0 eth has been inputted
-        if(!ethAmount) return
+        if(!ethAmount) {
+            setValue('tokenAmount', '')
+            return
+        }
 
         setValue('tokenAmount', "")
         const exchange = await _getExchangeFromTokenName(false, tokenName)
@@ -165,13 +191,13 @@ const Pool: NextPage = () => {
 
         let currentEthBalance = ethers.utils.formatEther(await signer.getBalance())
         let currentTokenBalance = ethers.utils.formatEther(await token.balanceOf(await signer.getAddress()))
-        let firstCondtion = parseInt(currentTokenBalance) < parseInt(tokenAmount)
+        let firstCondition = parseInt(currentTokenBalance) < parseInt(tokenAmount)
         let secondCondition = parseInt(currentEthBalance) < parseInt(ethAmount)
         if(secondCondition) {
             setVisible(true)
             setErrorMsg(`Not enough ETH`)
             return
-        } else if(firstCondtion) {
+        } else if(firstCondition) {
             setVisible(true)
             setErrorMsg(`Not enough ${tokenName}!`)
             return
@@ -187,9 +213,55 @@ const Pool: NextPage = () => {
 
     }
 
+    // ---------------------------------------------------------------
+
+    const loginHandle = async () => {
+        if (typeof window.ethereum !== 'undefined') {
+            // console.log(window.ethereum.selectedAddress)
+            const web3Modal = new Web3Modal()
+            await web3Modal.connect()
+            if(window.ethereum.selectedAddress) setIsLoggedIn(true)
+
+        } else {
+            setVisible(true)
+            setErrorMsg("Metamask is not installed in your browser")
+        }
+
+    }
+
+    const showUserLiquidityHandler = async () => {
+        const web3Modal = new Web3Modal()
+        const connection = await web3Modal.connect()
+        let provider = new ethers.providers.Web3Provider(connection)
+        let signer = provider.getSigner()
+        let signerAddress = await signer.getAddress()
+        const firstExchange = await _getExchangeFromTokenName(false, tokenSymbols[0])
+        const secondExchange = await _getExchangeFromTokenName(false, tokenSymbols[1])
+        let firstLpTokenAmount = ethers.utils.formatEther(await firstExchange.balanceOf(signerAddress))
+        let secondLpTokenAmount = ethers.utils.formatEther(await secondExchange.balanceOf(signerAddress))
+        if(firstLpTokenAmount) {
+         let data = await firstExchange.getEthAndTokenByToken(ethers.utils.parseEther(firstLpTokenAmount))
+         let ethAmount = data[0]
+         let tokenAmount = data[1]
+         let elem = {'tokenName': tokenSymbols[0], 'ethAmount': ethAmount,
+             'tokenAmount': tokenAmount, 'lpTokenAmount': firstLpTokenAmount}
+         // @ts-ignore
+            setUserLiquidityPools(oldArray => [...oldArray, elem])
+        }
+        if(secondLpTokenAmount) {
+            let data = await secondExchange.getEthAndTokenByToken(ethers.utils.parseEther(secondLpTokenAmount))
+            let ethAmount = data[0]
+            let tokenAmount = data[1]
+            let elem = {'tokenName': tokenSymbols[1], 'ethAmount': ethAmount,
+                'tokenAmount': tokenAmount, 'lpTokenAmount': secondLpTokenAmount}
+            // @ts-ignore
+            setUserLiquidityPools(oldArray => [...oldArray, elem])
+        }
+    }
+
         return(
         <div>
-            <Spacer y={10} />
+            <Spacer y={5} />
 
             <Container xs  >
                 {!isWaiting && (
@@ -208,14 +280,60 @@ const Pool: NextPage = () => {
                         textGradient: "45deg, $blue500 -20%, $pink500 50%",
                         textAlign: "center"
                     }}>
-                        {isWaiting ? "Waiting for the transactions.." : (addLiquidity ? "Add liquidity":"Pool")}
+                        {isWaiting ? "Waiting for the transactions.." : (addLiquidity ? "Add liquidity":"My liquidity")}
                     </Text>
                     {!addLiquidity ? (
                         <>
-                            <Button color="primary" onClick={() => setAddLiquidity(!addLiquidity)}>Add liquidity</Button>
+                            { !isLoggedIn ? (
+                                <Button.Group ghost css={{mt: '15%', '@lg': {ml: '25%'}}} size="xl" color="primary">
+                                    <Button color="primary" onClick={() => loginHandle()}>Login</Button>
+                                    <Button  color="primary" onClick={() => setAddLiquidity(!addLiquidity)}>
+                                        Add liquidity
+                                    </Button>
+                                </Button.Group>
+                            ) : (
+                                <>
+                                   <Card hoverable color="gradient" css={{mb: '15%', mt: '5%'}}>
+                                       <Text color="white">
+                                           Liquidity providers <b>earn a 1% fee</b> on all trades proportional to their share of the pool. Fees are added to the pool, accrue in real time and can be claimed by withdrawing your liquidity.
+                                       </Text>
+                                   </Card>
+                                    {/*<Grid.Container gap={1}>*/}
+                                    {/*    <Grid sm={12} md={6}>*/}
+                                    {/*        <Card hoverable color="gradient" >*/}
+                                    {/*            <Text color={"white"} h1 css={{textAlign: 'center'}}>*/}
+                                    {/*                Next UI*/}
+                                    {/*            </Text>*/}
+                                    {/*            <Text color={"white"} h2> Beautiful and modern React UI library.</Text>*/}
+
+                                    {/*                    <Button  color="secondary">Withdraw 🚀</Button>*/}
+
+                                    {/*        </Card>*/}
+                                    {/*    </Grid>*/}
+
+                                    <Grid.Container gap={1}>
+                                        <UserAddedLiquidity
+                                            _getExchangeFromTokenName={_getExchangeFromTokenName}
+                                        />
+                                    </Grid.Container>
+
+
+                                    <Button ghost css={{mt: '30px', mx: '15%'}} color="primary" onClick={() => setAddLiquidity(!addLiquidity)}>
+                                        Add liquidity
+                                    </Button>
+
+                                    {/*{userLiquidityPools.map(userLiquidityPool => (*/}
+                                    {/*    <>*/}
+                                    {/*        <Text  color="white">{userLiquidityPool['tokenName']}</Text>*/}
+                                    {/*    </>*/}
+                                    {/*) )}*/}
+                                </>
+                            )}
+
+
                         </>
                     ) : (
-                         <> {!isWaiting ? (
+                         <> {!isWaiting && (
                              <form onSubmit={handleSubmit(addLiquidityHandler)}>
                                  <Grid.Container gap={2} justify="center">
                                      <Grid  lg={9} xs={12}>
@@ -265,9 +383,6 @@ const Pool: NextPage = () => {
                                  </Grid.Container>
 
                              </form>
-
-                         ) : (
-                             <></>
                          )}
                          </>
                     )}
