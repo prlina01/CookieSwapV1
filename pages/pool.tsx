@@ -260,8 +260,8 @@ const Pool: NextPage = () => {
                 )}
                 <Card css={{bgColor: "$blue900"}}>
                     {addLiquidity && !isWaiting &&
-                        <button className="text-xs" onClick={() => setAddLiquidity(!addLiquidity)}>
-                            <Text css={{textAlign: "left"}} className="hover:text-purple-700" color='primary' size={50}>&#8592;</Text>
+                        <button className="text-sm w-1/6" onClick={() => setAddLiquidity(!addLiquidity)}>
+                            <Text className="hover:text-purple-700" color='primary' size={75}>&#8592;</Text>
                         </button>
                     }
                     <Text h1 size={60} css={{

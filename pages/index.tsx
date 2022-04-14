@@ -423,7 +423,7 @@ const Home: NextPage = () => {
             <Link href={'/'}><Button><Text color="black">Swap</Text></Button></Link>
             <Link href={'/pool'}><Button><Text color="white">Pool</Text></Button></Link>
           </Button.Group>
-          )};
+          )}
 
           <Card css={{bgColor: "$blue900"}}>
             <Text h1 size={60} css={{
