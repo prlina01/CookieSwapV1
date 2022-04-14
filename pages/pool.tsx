@@ -10,11 +10,10 @@ import {
     FormElement,
     Modal,
     useModal,
-    Collapse
 } from "@nextui-org/react";
 import Link from "next/link";
 import {ChangeEvent, useEffect, useState} from "react";
-import {useForm, useWatch} from "react-hook-form";
+import {FieldValues, SubmitHandler, useForm, useWatch} from "react-hook-form";
 import Web3Modal from "web3modal";
 import {ethers} from "ethers";
 import Token from "../artifacts/contracts/Token.sol/Token.json";
@@ -23,6 +22,7 @@ import Factory from '../artifacts/contracts/Factory.sol/Factory.json'
 import Exchange from '../artifacts/contracts/Exchange.sol/Exchange.json'
 import {useRouter} from "next/router";
 import UserAddedLiquidity from "../components/UserAddedLiquidity";
+import {Exchange as ExchangeType} from "../typechain";
 
 const Pool: NextPage = () => {
 
@@ -43,6 +43,11 @@ const Pool: NextPage = () => {
     const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false)
 
     // const [userLiquidityPools, setUserLiquidityPools] = useState([])
+
+    type LiquidityPoolType = {
+        'tokenName': string, 'ethAmount': string,
+        'tokenAmount': string, 'lpTokenAmount': string
+    }
 
 
     useEffect(() => {
@@ -131,7 +136,7 @@ const Pool: NextPage = () => {
 
     }
 
-    const _getExchangeFromTokenName = async (isChangingLiquidity: boolean, tokenName: string) => {
+    const _getExchangeFromTokenName = async (isChangingLiquidity: boolean, tokenName: string): Promise<ExchangeType> => {
         let provider
         let signer
         let tokenAddress
@@ -154,6 +159,7 @@ const Pool: NextPage = () => {
             exchange = new ethers.Contract(exchangeAddress, Exchange.abi, provider)
         }
 
+        // @ts-ignore
         return exchange
     }
 
@@ -165,7 +171,7 @@ const Pool: NextPage = () => {
         )
     }
 
-    const addLiquidityHandler = async (item: any) => {
+    const addLiquidityHandler: SubmitHandler<FieldValues> = async (item) => {
         let {ethAmount, tokenAmount} = item
 
         if (typeof window.ethereum == "undefined") {
@@ -229,7 +235,7 @@ const Pool: NextPage = () => {
 
     }
 
-    const removeLiquidityHandler = async (liquidityPool: any) => {
+    const removeLiquidityHandler = async (liquidityPool: LiquidityPoolType) => {
 
         const exchange = await _getExchangeFromTokenName(true, tokenName)
         const tx = await exchange.removeLiquidity(ethers.utils.parseEther(liquidityPool['lpTokenAmount']))

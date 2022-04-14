@@ -4,9 +4,19 @@ import {Button, Card, Grid, Text} from "@nextui-org/react";
 import { useEffect, useState} from "react";
 import * as deployedAddresses from "../.config";
 import Token from "../artifacts/contracts/Token.sol/Token.json";
+import {Exchange} from "../typechain";
 
-export default (props: { _getExchangeFromTokenName: any, removeLiquidityHandler: any }) => {
-    const [liquidityPools, setLiquidityPools] = useState<any>()
+type ExchangeFromTokenNameType = (isChangingLiquidity: boolean, tokenName: string) => Promise<Exchange>
+type RemoveLiquidityHandlerType = (liquidityPool: LiquidityPoolType) => void
+type LiquidityPoolType = {
+    'tokenName': string, 'ethAmount': string,
+    'tokenAmount': string, 'lpTokenAmount': string
+}
+
+export default (props: {
+    _getExchangeFromTokenName: ExchangeFromTokenNameType
+    ,removeLiquidityHandler:  RemoveLiquidityHandlerType}) => {
+    const [liquidityPools, setLiquidityPools] = useState<LiquidityPoolType[]>([])
     let [tokenSymbols, setTokenSymbols] = useState<string[]>([])
     let [cardText, setCardText] = useState<string>('')
 
@@ -74,7 +84,7 @@ export default (props: { _getExchangeFromTokenName: any, removeLiquidityHandler:
     return (
         <>
             {liquidityPools?.length > 0 ? (
-                liquidityPools?.map((liquidityPool: any) => (
+                liquidityPools?.map((liquidityPool: LiquidityPoolType) => (
                     <Grid css={{'@lg': {ml: liquidityPools.length == 2 ? '0%':'25%'}}} key={liquidityPool['tokenName']}  sm={12} md={6}>
                         <Card hoverable color="primary">
                             <Text weight="bold" size={30} css={{textAlign: 'center', mb: '15%',

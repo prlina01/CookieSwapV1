@@ -1,7 +1,7 @@
 import type { NextPage } from 'next'
 import {ethers} from "ethers";
 import { useEffect, useState, ChangeEvent} from "react";
-import {useForm, useWatch} from "react-hook-form";
+import {FieldValues, SubmitHandler, useForm, useWatch} from "react-hook-form";
 import Link from 'next/link'
 import Web3Modal from 'web3modal'
 import {
@@ -29,7 +29,7 @@ const Home: NextPage = () => {
   const [secondTokenName, setSecondTokenName] = useState<string>("");
   const [lastBtnAccessedModal, setLastBtnAccessedModal] = useState<string>("")
 
-  const {control, setFocus, reset, register, handleSubmit, formState, setValue} = useForm()
+  const {control, register, handleSubmit, setValue} = useForm()
 
   const firstTokenAmount = useWatch({control, name: 'firstTokenAmount'})
   const secondTokenAmount = useWatch({control, name: 'secondTokenAmount'})
@@ -37,10 +37,8 @@ const Home: NextPage = () => {
 
   const [isWaiting, setIsWaiting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("")
-  const [disableToken, setDisableToken] = useState<boolean>(true);
+  // const [disableToken, setDisableToken] = useState<boolean>(true);
   const [tokenSymbols, setTokenSymbols] = useState<string[]>([])
-
-
 
 
 
@@ -88,7 +86,7 @@ const Home: NextPage = () => {
   }
 
 
-  const handleSwap = async (item: any) => {
+  const handleSwap: SubmitHandler<FieldValues> = async (item) => {
     let {firstTokenAmount, secondTokenAmount} = item
     if (typeof window.ethereum == "undefined") {
       setVisible(true)
@@ -115,16 +113,9 @@ const Home: NextPage = () => {
       let firstTokenBalance = firstTokenName == 'ETH' ?
           ethers.utils.formatEther(await signer.getBalance()) :
           ethers.utils.formatEther(await firstToken.balanceOf(await signer.getAddress()))
-      // let secondTokenBalance = firstTokenName == 'ETH' ?
-      //     ethers.utils.formatEther(await firstToken.balanceOf(await signer.getAddress())) :
-      //     ethers.utils.formatEther(await signer.getBalance())
 
       let firstCondition = parseInt(firstTokenBalance) < parseInt(firstTokenAmount)
-      // let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
-      // if(secondCondition) {
-      //   setVisible(true)
-      //   setErrorMsg(`Not enough ${secondTokenName}`)
-      //   return
+
       if(firstCondition) {
         setVisible(true)
         setErrorMsg(`Not enough ${firstTokenName}!`)
@@ -164,16 +155,10 @@ const Home: NextPage = () => {
       let firstTokenBalance = firstTokenName == 'ETH' ?
           ethers.utils.formatEther(await signer.getBalance()) :
           ethers.utils.formatEther(await secondToken.balanceOf(await signer.getAddress()))
-      // let secondTokenBalance = firstTokenName == 'ETH' ?
-      //     ethers.utils.formatEther(await secondToken.balanceOf(await signer.getAddress())) :
-      //     ethers.utils.formatEther(await signer.getBalance())
+
 
       let firstCondition = parseInt(firstTokenBalance) < parseInt(firstTokenAmount)
-      // let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
-      // if(secondCondition) {
-      //   setVisible(true)
-      //   setErrorMsg(`Not enough ${secondTokenName}`)
-      //   return
+
       if(firstCondition) {
         setVisible(true)
         setErrorMsg(`Not enough ${firstTokenName}!`)
@@ -214,16 +199,10 @@ const Home: NextPage = () => {
       let firstTokenBalance = firstTokenName == tokenSymbols[0] ?
           ethers.utils.formatEther(await firstToken.balanceOf(signerAddress)) :
           ethers.utils.formatEther(await secondToken.balanceOf(signerAddress))
-      // let secondTokenBalance = firstTokenName == tokenSymbols[1] ?
-      //     ethers.utils.formatEther(await secondToken.balanceOf(signerAddress)) :
-      //     ethers.utils.formatEther(await firstToken.balanceOf(signerAddress))
+
 
       let firstCondition = parseInt(firstTokenBalance) < parseInt(firstTokenAmount)
-      // let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
-      // if(secondCondition) {
-      //   setVisible(true)
-      //   setErrorMsg(`Not enough ${secondTokenName}`)
-      //   return
+
       if(firstCondition) {
         setVisible(true)
         setErrorMsg(`Not enough ${firstTokenName}!`)

@@ -21,3 +21,30 @@ Exchange contracts are automated market makers between an ETH-ERC20 pair. Trader
 UniswapV1 Clone uses a "constant product" market making formula which sets the exchange rate based off of the relative size of the ETH and ERC20 reserves, and the amount with which an incoming trade shifts this ratio. Selling ETH for ERC20 tokens increases the size of the ETH reserve and decreases the size of the ERC20 reserve. This shifts the reserve ratio, increasing the ERC20 token's price relative to ETH for subsequent transactions. The larger a trade relative to the total size of the reserves, the more price slippage will occur. Essentially, exchange contracts use the open financial market to decide on the relative value of a pair and uses that as a market making strategy.
 
 A small liquidity provider fee (1%) is taken out of each trade and added to the reserves. While the ETH-ERC20 reserve ratio is constantly shifting, fees makes sure that the total combined reserve size increases with every trade. This functions as a payout to liquidity providers that is collected when they burn their pool tokens to withdraw their portion of total reserves. Guaranteed arbitrage opportunities from price fluctuations should push a steady flow of transactions through the system and increase the amount of fee revenue generated.
+# Steps to set up the project on your local machine
+**We are going to work with _rinekby_ testnet network while connecting to _Alchemy_.**
+
+Rinkeby is an Ethereum test network that allows for blockchain development testing without paying gas fees with real money like on the mainnet.
+
+Alchemy is a node provider. It helps your app communicate with contracts on the blockchain like a bridge.
+### Setup
+- install `npm` and `npx` on your machine
+- run `npm install` to set up all the dependencies (hardhat, ethers, etc.)
+- set up a [Metamask](https://metamask.io/download.html) wallet
+- get free eth on rinkeby testnet [here](https://www.rinkebyfaucet.com//)
+- set up an Alchemy account [here](https://alchemy.com/?a=641a319005)
+- create`.env` file and then fill in the following environment variables with your own info
+```shell
+  ETHERSCAN_API_KEY=
+  API_URL=
+  PRIVATE_KEY=
+```
+
+
+### Commands:
+- run `npx hardhat compile` if you want to compile your smart contracts
+- run `npx hardhat run scripts/deploy.js --network rinkeby` to deploy the contract to the Rinkeby testnet
+- modify `.config.ts` file with addresses from the previous command
+- run `npm run dev` to start the local server; you should be able to access the app on `localhost:3000` 
+- run `npx hardhat test` to run unit tests
+- run `npx hardhat verify --network rinkeby <DEPLOYED_CONTRACT_ADDRESS> <CONSTRUCTOR_PARAMS> ` to verify your contract on Etherscan
