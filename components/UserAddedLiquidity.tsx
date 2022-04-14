@@ -26,7 +26,7 @@ export default (props: { _getExchangeFromTokenName: any, removeLiquidityHandler:
 
     useEffect(() => {
         if(tokenSymbols.length == 2) void getLiquidityPools()
-    }, [tokenSymbols])
+    }, [tokenSymbols[0], tokenSymbols[1]])
 
     const getLiquidityPools = async () => {
         let liquidity_pools = []
@@ -39,8 +39,7 @@ export default (props: { _getExchangeFromTokenName: any, removeLiquidityHandler:
         const secondExchange = await props._getExchangeFromTokenName(false, tokenSymbols[1])
         let firstLpTokenAmount = ethers.utils.formatEther(await firstExchange.balanceOf(signerAddress))
         let secondLpTokenAmount = ethers.utils.formatEther(await secondExchange.balanceOf(signerAddress))
-        console.log(firstLpTokenAmount, secondLpTokenAmount)
-        if (parseFloat(firstLpTokenAmount)) {
+        if (parseFloat(firstLpTokenAmount) > 0) {
             let data = await firstExchange.getEthAndTokenByToken(ethers.utils.parseEther(firstLpTokenAmount))
             let ethAmount = ethers.utils.formatEther(data[0])
             let tokenAmount = ethers.utils.formatEther(data[1])
@@ -50,7 +49,7 @@ export default (props: { _getExchangeFromTokenName: any, removeLiquidityHandler:
             }
             liquidity_pools.push(elem)
         }
-        if (parseFloat(secondLpTokenAmount)) {
+        if (parseFloat(secondLpTokenAmount) > 0) {
             let data = await secondExchange.getEthAndTokenByToken(ethers.utils.parseEther(secondLpTokenAmount))
             let ethAmount = ethers.utils.formatEther(data[0])
             let tokenAmount = ethers.utils.formatEther(data[1])
@@ -63,7 +62,6 @@ export default (props: { _getExchangeFromTokenName: any, removeLiquidityHandler:
         }
         if(liquidity_pools.length > 0) setLiquidityPools(liquidity_pools)
         else setCardText("You haven't added any liquidity")
-        console.log(liquidity_pools)
     }
 
     const parseNum = (num: string) => {
@@ -77,28 +75,26 @@ export default (props: { _getExchangeFromTokenName: any, removeLiquidityHandler:
         <>
             {liquidityPools?.length > 0 ? (
                 liquidityPools?.map((liquidityPool: any) => (
-                    <>
-                        <Grid css={{'@lg': {ml: liquidityPool.length == 2 ? '':'25%'}}} key={liquidityPool['ethAmount']} sm={12} md={6}>
-                            <Card hoverable color="primary">
-                                <Text weight="bold" size={30} css={{textAlign: 'center', mb: '15%',
-                                    textGradient: "45deg, $blue500 -20%, $pink500 50%"
-                                }}>
-                                    { liquidityPool['tokenName'] ?
-                                        (liquidityPool['tokenName'] +  ' / ETH') : 'ETH'}
-                                </Text>
-                                <Text color="white" >
-                                    ETH: {parseNum(liquidityPool['ethAmount'])}
-                                </Text>
-                                <Text color="white">
-                                    {liquidityPool['tokenName']} : {parseNum(liquidityPool['tokenAmount'])}
-                                </Text>
-                                <Text color="white">
-                                    LPTokens: {parseNum(liquidityPool['lpTokenAmount'])}
-                                </Text>
-                                <Button onClick={() => props.removeLiquidityHandler(liquidityPool)} css={{mt: '15%'}}  color="secondary">Withdraw 🚀</Button>
-                            </Card>
-                        </Grid>
-                    </>
+                    <Grid css={{'@lg': {ml: liquidityPools.length == 2 ? '0%':'25%'}}} key={liquidityPool['tokenName']}  sm={12} md={6}>
+                        <Card hoverable color="primary">
+                            <Text weight="bold" size={30} css={{textAlign: 'center', mb: '15%',
+                                textGradient: "45deg, $blue500 -20%, $pink500 50%"
+                            }}>
+                                { liquidityPool['tokenName'] ?
+                                    (liquidityPool['tokenName'] +  ' / ETH') : 'ETH'}
+                            </Text>
+                            <Text color="white" >
+                                ETH: {parseNum(liquidityPool['ethAmount'])}
+                            </Text>
+                            <Text color="white">
+                                {liquidityPool['tokenName']} : {parseNum(liquidityPool['tokenAmount'])}
+                            </Text>
+                            <Text color="white">
+                                LPTokens: {parseNum(liquidityPool['lpTokenAmount'])}
+                            </Text>
+                            <Button onClick={() => props.removeLiquidityHandler(liquidityPool)} css={{mt: '15%'}}  color="secondary">Withdraw 🚀</Button>
+                        </Card>
+                    </Grid>
                 ))
             ) : (
                 <>

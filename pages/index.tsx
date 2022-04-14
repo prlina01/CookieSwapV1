@@ -115,17 +115,17 @@ const Home: NextPage = () => {
       let firstTokenBalance = firstTokenName == 'ETH' ?
           ethers.utils.formatEther(await signer.getBalance()) :
           ethers.utils.formatEther(await firstToken.balanceOf(await signer.getAddress()))
-      let secondTokenBalance = firstTokenName == 'ETH' ?
-          ethers.utils.formatEther(await firstToken.balanceOf(await signer.getAddress())) :
-          ethers.utils.formatEther(await signer.getBalance())
+      // let secondTokenBalance = firstTokenName == 'ETH' ?
+      //     ethers.utils.formatEther(await firstToken.balanceOf(await signer.getAddress())) :
+      //     ethers.utils.formatEther(await signer.getBalance())
 
       let firstCondition = parseInt(firstTokenBalance) < parseInt(firstTokenAmount)
-      let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
-      if(secondCondition) {
-        setVisible(true)
-        setErrorMsg(`Not enough ${secondTokenName}`)
-        return
-      } else if(firstCondition) {
+      // let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
+      // if(secondCondition) {
+      //   setVisible(true)
+      //   setErrorMsg(`Not enough ${secondTokenName}`)
+      //   return
+      if(firstCondition) {
         setVisible(true)
         setErrorMsg(`Not enough ${firstTokenName}!`)
         return
@@ -164,17 +164,17 @@ const Home: NextPage = () => {
       let firstTokenBalance = firstTokenName == 'ETH' ?
           ethers.utils.formatEther(await signer.getBalance()) :
           ethers.utils.formatEther(await secondToken.balanceOf(await signer.getAddress()))
-      let secondTokenBalance = firstTokenName == 'ETH' ?
-          ethers.utils.formatEther(await secondToken.balanceOf(await signer.getAddress())) :
-          ethers.utils.formatEther(await signer.getBalance())
+      // let secondTokenBalance = firstTokenName == 'ETH' ?
+      //     ethers.utils.formatEther(await secondToken.balanceOf(await signer.getAddress())) :
+      //     ethers.utils.formatEther(await signer.getBalance())
 
       let firstCondition = parseInt(firstTokenBalance) < parseInt(firstTokenAmount)
-      let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
-      if(secondCondition) {
-        setVisible(true)
-        setErrorMsg(`Not enough ${secondTokenName}`)
-        return
-      } else if(firstCondition) {
+      // let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
+      // if(secondCondition) {
+      //   setVisible(true)
+      //   setErrorMsg(`Not enough ${secondTokenName}`)
+      //   return
+      if(firstCondition) {
         setVisible(true)
         setErrorMsg(`Not enough ${firstTokenName}!`)
         return
@@ -214,17 +214,17 @@ const Home: NextPage = () => {
       let firstTokenBalance = firstTokenName == tokenSymbols[0] ?
           ethers.utils.formatEther(await firstToken.balanceOf(signerAddress)) :
           ethers.utils.formatEther(await secondToken.balanceOf(signerAddress))
-      let secondTokenBalance = firstTokenName == tokenSymbols[1] ?
-          ethers.utils.formatEther(await secondToken.balanceOf(signerAddress)) :
-          ethers.utils.formatEther(await firstToken.balanceOf(signerAddress))
+      // let secondTokenBalance = firstTokenName == tokenSymbols[1] ?
+      //     ethers.utils.formatEther(await secondToken.balanceOf(signerAddress)) :
+      //     ethers.utils.formatEther(await firstToken.balanceOf(signerAddress))
 
       let firstCondition = parseInt(firstTokenBalance) < parseInt(firstTokenAmount)
-      let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
-      if(secondCondition) {
-        setVisible(true)
-        setErrorMsg(`Not enough ${secondTokenName}`)
-        return
-      } else if(firstCondition) {
+      // let secondCondition = parseInt(secondTokenBalance) < parseInt(secondTokenAmount)
+      // if(secondCondition) {
+      //   setVisible(true)
+      //   setErrorMsg(`Not enough ${secondTokenName}`)
+      //   return
+      if(firstCondition) {
         setVisible(true)
         setErrorMsg(`Not enough ${firstTokenName}!`)
         return
@@ -252,6 +252,8 @@ const Home: NextPage = () => {
 
     setValue('firstTokenAmount', "")
     setValue('secondTokenAmount', "")
+    setVisible(true)
+    setErrorMsg('Successfully swapped tokens!')
 
   }
 
@@ -381,7 +383,7 @@ const Home: NextPage = () => {
     const second = <Button key={2} onClick={() => chooseToken(lastBtnAccessedModal, tokenSymbols[0])}><Text color="white">{tokenSymbols[0]}</Text></Button>
     const third = <Button key={3} onClick={() => chooseToken(lastBtnAccessedModal, tokenSymbols[1])}> <Text color="white">{tokenSymbols[1]}</Text></Button>
     if(!firstTokenName && !secondTokenName) buttons.push(first, second, third)
-    if(lastBtnAccessedModal == "first") {
+    else if(lastBtnAccessedModal == "first") {
       switch (secondTokenName) {
         case 'ETH':
           if(firstTokenName == tokenSymbols[0]) buttons.push(third)
@@ -397,6 +399,9 @@ const Home: NextPage = () => {
           if(firstTokenName == tokenSymbols[0]) buttons.push(first)
           else if (firstTokenName == 'ETH') buttons.push(second)
           else buttons.push(first, second)
+          break
+        default:
+          buttons.push(first, second, third)
           break
       }
     } else if (lastBtnAccessedModal == "second") {
@@ -415,6 +420,9 @@ const Home: NextPage = () => {
           if(secondTokenName == tokenSymbols[0]) buttons.push(first)
           else if (secondTokenName == 'ETH') buttons.push(second)
           else buttons.push(first, second)
+          break
+        default:
+          buttons.push(first, second, third)
           break
       }
     }
@@ -443,7 +451,7 @@ const Home: NextPage = () => {
               textGradient: "45deg, $blue500 -20%, $pink500 50%",
               textAlign: "center"
             }}>
-              {!isWaiting ? "Swap" : "Waiting for the transactions.."}
+              {!isWaiting ? "Swap" : "Waiting for transactions..."}
             </Text>
             {!isWaiting && (
                 <form onSubmit={handleSubmit(handleSwap)}>

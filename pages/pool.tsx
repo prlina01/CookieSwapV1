@@ -19,12 +19,9 @@ import Web3Modal from "web3modal";
 import {ethers} from "ethers";
 import Token from "../artifacts/contracts/Token.sol/Token.json";
 import * as deployedAddresses from '../.config'
-import {Factory as FactoryType, Factory__factory, Token__factory} from "../typechain";
 import Factory from '../artifacts/contracts/Factory.sol/Factory.json'
-import {Token as TokenType} from '../typechain'
 import Exchange from '../artifacts/contracts/Exchange.sol/Exchange.json'
 import {useRouter} from "next/router";
-import userAddedLiquidity from "../components/UserAddedLiquidity";
 import UserAddedLiquidity from "../components/UserAddedLiquidity";
 
 const Pool: NextPage = () => {
@@ -39,7 +36,7 @@ const Pool: NextPage = () => {
     const router = useRouter();
 
     const [isWaiting, setIsWaiting] = useState<boolean>(false);
-    const [errorMsg, setErrorMsg] = useState<string>("")
+    const [alertMsg, setAlertMsg] = useState<string>("")
 
     const [tokenSymbols, setTokenSymbols] = useState<string[]>([])
 
@@ -173,7 +170,7 @@ const Pool: NextPage = () => {
 
         if (typeof window.ethereum == "undefined") {
             setVisible(true)
-            setErrorMsg(`Metamask is not installed in your browser!`)
+            setAlertMsg(`Metamask is not installed in your browser!`)
             return
         }
 
@@ -195,11 +192,11 @@ const Pool: NextPage = () => {
         let secondCondition = parseInt(currentEthBalance) < parseInt(ethAmount)
         if(secondCondition) {
             setVisible(true)
-            setErrorMsg(`Not enough ETH`)
+            setAlertMsg(`Not enough ETH`)
             return
         } else if(firstCondition) {
             setVisible(true)
-            setErrorMsg(`Not enough ${tokenName}!`)
+            setAlertMsg(`Not enough ${tokenName}!`)
             return
         }
         let tx = await token.approve(exchange.address, ethers.utils.parseEther(tokenAmount))
@@ -209,7 +206,8 @@ const Pool: NextPage = () => {
         await transaction.wait()
         setIsWaiting(false)
         setTokenName('')
-        // await router.push('/')
+        setVisible(true)
+        setAlertMsg('Successfully added liquidity!')
 
     }
 
@@ -221,10 +219,12 @@ const Pool: NextPage = () => {
             const web3Modal = new Web3Modal()
             await web3Modal.connect()
             if(window.ethereum.selectedAddress) setIsLoggedIn(true)
+            setVisible(true)
+            setAlertMsg('Successfully logged in!')
 
         } else {
             setVisible(true)
-            setErrorMsg("Metamask is not installed in your browser")
+            setAlertMsg("Metamask is not installed in your browser")
         }
 
     }
@@ -232,10 +232,13 @@ const Pool: NextPage = () => {
     const removeLiquidityHandler = async (liquidityPool: any) => {
 
         const exchange = await _getExchangeFromTokenName(true, tokenName)
-        const tx = exchange.removeLiquidity(ethers.utils.parseEther(liquidityPool['lpTokenAmount']))
+        const tx = await exchange.removeLiquidity(ethers.utils.parseEther(liquidityPool['lpTokenAmount']))
         setIsWaiting(true)
+        await tx.wait()
         setIsWaiting(false)
-
+        setVisible(true)
+        setAlertMsg('Successfully removed liquidity')
+        await router.push('/')
     }
 
         return(
@@ -250,7 +253,7 @@ const Pool: NextPage = () => {
                     </Button.Group>
                 )}
                 <Card css={{bgColor: "$blue900"}}>
-                    {addLiquidity &&
+                    {addLiquidity && !isWaiting &&
                         <button className="text-xs" onClick={() => setAddLiquidity(!addLiquidity)}>
                             <Text css={{textAlign: "left"}} className="hover:text-purple-700" color='primary' size={50}>&#8592;</Text>
                         </button>
@@ -259,9 +262,9 @@ const Pool: NextPage = () => {
                         textGradient: "45deg, $blue500 -20%, $pink500 50%",
                         textAlign: "center"
                     }}>
-                        {isWaiting ? "Waiting for the transactions.." : (addLiquidity ? "Add liquidity":"My liquidity")}
+                        {isWaiting ? "Waiting for transactions..." : (addLiquidity ? "Add liquidity":"My liquidity")}
                     </Text>
-                    {!addLiquidity ? (
+                    {!addLiquidity && !isWaiting ? (
                         <>
                             { !isLoggedIn ? (
                                 <Button.Group ghost css={{mt: '15%', '@lg': {ml: '25%'}}} size="xl" color="primary">
@@ -358,7 +361,7 @@ const Pool: NextPage = () => {
                 css={{bgColor: 'black'}}
             >
 
-                {!errorMsg ? (
+                {!alertMsg ? (
                     <>
                         <Modal.Header css={{cursor: 'default'}}>
                             <Text id="modal-title" size={18}>
@@ -385,13 +388,13 @@ const Pool: NextPage = () => {
                     <>
                         <Modal.Header css={{cursor: 'default'}}>
                             <Text id="modal-title" css={{textGradient: "45deg, $blue500 -20%, $pink500 50%"}} size={40}>
-                                {errorMsg}
+                                {alertMsg}
                             </Text>
                         </Modal.Header>
                         <Modal.Body css={{cursor: 'default'}}>
                             <Button onClick={() => {
                                 setVisible(false)
-                                setErrorMsg("")
+                                setAlertMsg("")
                             }}  color="error" >
                               Ok
                             </Button>
