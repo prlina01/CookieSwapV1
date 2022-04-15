@@ -1,12 +1,22 @@
-# UniswapV1 Clone
+![puniswap v2](https://user-images.githubusercontent.com/36077702/163594659-d857cfcc-26b9-47cd-9cf3-d3227a7a25e0.png)
+
 Designed with simplicity in mind, and completely inspired by UniswapV1, **UniswapV1 Clone** protocol provides an interface for seamless exchange of ERC20 tokens on Ethereum. By eliminating unnecessary forms of rent extraction and middlemen it allows faster, more efficient exchange. Where it makes tradeoffs, decentralization, censorship resistance, and security are prioritized.
 
 **UniswapV1 Clone** is open source and functions as a public good. There is no central token or platform fee. No special treatment is given to early investors, adopters, or developers. Token listing is open and free. All smart contract functions are public and all upgrades are opt-in.
+
+### You can access the application here: https://uniswap-v1-clone.vercel.app/
+
+
 ## Features
 * Join liquidity pools to collect fees on ETH-ERC20 pairs
 * Liquidity-sensitive automated pricing using constant product formula
 * Trade ETH for any ERC20 without wrapping
 * Trade two ERC20 tokens in a single transaction
+
+![Screenshot from 2022-04-15 18-25-42](https://user-images.githubusercontent.com/36077702/163595876-5b464348-82d8-49be-a753-a9b2056a2088.png)
+![Screenshot from 2022-04-15 18-25-58](https://user-images.githubusercontent.com/36077702/163595880-8784e8ea-9096-4213-9b80-82225b9ed3a0.png)
+
+
 ## How it works
 
 **UniswapV1 Clone** is made up of a two ETH-ERC20 exchange contracts. 
