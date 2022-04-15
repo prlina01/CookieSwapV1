@@ -217,11 +217,11 @@ const Pool: NextPage = () => {
 
     }
 
-    // ---------------------------------------------------------------
+    // --------------------------------------------------------------
 
     const loginHandle = async () => {
         if (typeof window.ethereum !== 'undefined') {
-            // console.log(window.ethereum.selectedAddress)
+
             const web3Modal = new Web3Modal()
             await web3Modal.connect()
             if(window.ethereum.selectedAddress) setIsLoggedIn(true)
@@ -286,14 +286,15 @@ const Pool: NextPage = () => {
                                            Liquidity providers <b>earn a 1% fee</b> on all trades proportional to their share of the pool. Fees are added to the pool, accrue in real time and can be claimed by withdrawing your liquidity.
                                        </Text>
                                    </Card>
-
-                                    <Grid.Container gap={1}>
-                                        <UserAddedLiquidity
-                                            _getExchangeFromTokenName={_getExchangeFromTokenName}
-                                            removeLiquidityHandler={removeLiquidityHandler}
-                                        />
-                                    </Grid.Container>
-
+                                    { tokenSymbols.length == 2 && (
+                                        <Grid.Container gap={1}>
+                                            <UserAddedLiquidity
+                                                _getExchangeFromTokenName={_getExchangeFromTokenName}
+                                                removeLiquidityHandler={removeLiquidityHandler}
+                                            />
+                                        </Grid.Container>
+                                    )
+                                    }
                                     <Button ghost css={{mt: '30px', mx: '15%'}} color="primary" onClick={() => setAddLiquidity(!addLiquidity)}>
                                         Add liquidity
                                     </Button>
