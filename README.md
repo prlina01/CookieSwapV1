@@ -5,6 +5,8 @@ Designed with simplicity in mind, and completely inspired by UniswapV1, **Uniswa
 **UniswapV1 Clone** is open source and functions as a public good. There is no central token or platform fee. No special treatment is given to early investors, adopters, or developers. Token listing is open and free. All smart contract functions are public and all upgrades are opt-in.
 
 ### You can access the application here: https://uniswap-v1-clone.vercel.app/
+*To interact with the app you will need a wallet connected to the **rinkeby** testnet.
+
 
 
 ## Features
